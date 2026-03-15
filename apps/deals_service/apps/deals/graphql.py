@@ -2,7 +2,7 @@ import json
 from urllib import error, request
 
 from ariadne import EnumType, MutationType, ObjectType, QueryType, gql
-from ariadne.contrib.federation import make_federated_schema
+from ariadne.contrib.federation import FederatedObjectType, make_federated_schema
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -22,7 +22,7 @@ type_defs = gql(
       LOST
     }
 
-    type Deal {
+    type Deal @key(fields: "id") {
       id: ID!
       companyId: ID!
       primaryContactId: ID
@@ -80,7 +80,7 @@ ALLOWED_STATUS_TRANSITIONS = {
 
 query = QueryType()
 mutation = MutationType()
-deal = ObjectType("Deal")
+deal = FederatedObjectType("Deal")
 deal_status = EnumType(
     "DealStatus",
     {
@@ -396,6 +396,11 @@ def resolve_deal_primary_contact(obj, _info):
         return None
 
     return {"id": str(obj.primary_contact_id)}
+
+
+@deal.reference_resolver
+def resolve_deal_reference(_, _info, representation):
+    return Deal.objects.filter(id=representation["id"]).first()
 
 
 schema = make_federated_schema(type_defs, [query, mutation, deal, deal_status])

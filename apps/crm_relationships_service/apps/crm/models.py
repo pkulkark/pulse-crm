@@ -99,25 +99,42 @@ class TaskStatus(models.TextChoices):
 
 
 class TaskPriority(models.TextChoices):
-    NORMAL = "NORMAL", "Normal"
+    LOW = "LOW", "Low"
+    MEDIUM = "MEDIUM", "Medium"
+    HIGH = "HIGH", "High"
+
+
+class ActivityType(models.TextChoices):
+    CALL = "CALL", "Call"
+    EMAIL = "EMAIL", "Email"
+    MEETING = "MEETING", "Meeting"
+    NOTE = "NOTE", "Note"
 
 
 class Task(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     company_id = models.UUIDField(db_index=True)
-    deal_id = models.UUIDField(db_index=True)
+    contact_id = models.UUIDField(blank=True, null=True, db_index=True)
+    deal_id = models.UUIDField(blank=True, null=True, db_index=True)
+    user_id = models.UUIDField(db_index=True)
     status = models.CharField(
         max_length=20,
         choices=TaskStatus.choices,
         default=TaskStatus.OPEN,
     )
+    due_date = models.DateField(blank=True, null=True, db_index=True)
     priority = models.CharField(
         max_length=20,
         choices=TaskPriority.choices,
-        default=TaskPriority.NORMAL,
+        default=TaskPriority.MEDIUM,
     )
-    source_event_id = models.CharField(max_length=255, unique=True)
+    source_event_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        unique=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -126,3 +143,21 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Activity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company_id = models.UUIDField(db_index=True)
+    contact_id = models.UUIDField(blank=True, null=True, db_index=True)
+    deal_id = models.UUIDField(blank=True, null=True, db_index=True)
+    user_id = models.UUIDField(db_index=True)
+    type = models.CharField(max_length=20, choices=ActivityType.choices)
+    details = models.TextField()
+    occurred_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-occurred_at", "-created_at", "id"]
+
+    def __str__(self):
+        return f"{self.type} for {self.company_id}"

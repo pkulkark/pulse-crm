@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 from kafka import KafkaConsumer
 
-from .models import Task
+from .models import Company, Task, TaskPriority
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,9 @@ def validate_event_payload(payload):
 def process_deal_status_changed_event(payload):
     validate_event_payload(payload)
 
+    if not Company.objects.filter(id=payload["companyId"]).exists():
+        raise ValueError("Company not found for deal status event.")
+
     if payload["newStatus"] != QUALIFYING_STATUS:
         log_consumer_event(
             "deal_status_changed_no_action",
@@ -80,6 +83,8 @@ def process_deal_status_changed_event(payload):
                 "title": FOLLOW_UP_TITLE,
                 "company_id": payload["companyId"],
                 "deal_id": payload["dealId"],
+                "user_id": settings.ASYNC_TASK_DEFAULT_USER_ID,
+                "priority": TaskPriority.MEDIUM,
             },
         )
 

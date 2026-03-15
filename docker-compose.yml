@@ -105,6 +105,7 @@ services:
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-crm}
       DEAL_STATUS_CHANGED_TOPIC: deal.status_changed
+      DEALS_GRAPHQL_URL: http://deals-service:8000/graphql/
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_CONSUMER_ENABLED: 'true'
       KAFKA_CONSUMER_GROUP: crm-relationships-service

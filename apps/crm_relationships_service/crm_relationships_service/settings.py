@@ -58,9 +58,20 @@ KAFKA_BOOTSTRAP_SERVERS = [
     for server in os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092").split(",")
     if server.strip()
 ]
+DEALS_GRAPHQL_URL = os.environ.get(
+    "DEALS_GRAPHQL_URL",
+    "http://127.0.0.1:8003/graphql/",
+)
+DEALS_GRAPHQL_TIMEOUT_SECONDS = float(
+    os.environ.get("DEALS_GRAPHQL_TIMEOUT_SECONDS", "5"),
+)
 DEAL_STATUS_CHANGED_TOPIC = os.environ.get(
     "DEAL_STATUS_CHANGED_TOPIC",
     "deal.status_changed",
+)
+ASYNC_TASK_DEFAULT_USER_ID = os.environ.get(
+    "ASYNC_TASK_DEFAULT_USER_ID",
+    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
 )
 KAFKA_CONSUMER_ENABLED = (
     os.environ.get("KAFKA_CONSUMER_ENABLED", "true").lower() == "true"
