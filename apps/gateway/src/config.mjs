@@ -30,7 +30,7 @@ export function getGatewayConfig(env = process.env) {
       url: env.IDENTITY_GRAPHQL_URL ?? 'http://127.0.0.1:8101/graphql/',
     },
     {
-      enabled: parseBooleanFlag(env.DEALS_GRAPHQL_ENABLED, false),
+      enabled: parseBooleanFlag(env.DEALS_GRAPHQL_ENABLED, true),
       name: 'deals',
       url: env.DEALS_GRAPHQL_URL ?? 'http://127.0.0.1:8003/graphql/',
     },

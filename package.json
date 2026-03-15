@@ -7,7 +7,7 @@
     "apps/gateway"
   ],
   "scripts": {
-    "build": "nx run-many -t build",
+    "build": "nx run-many -t build --projects=frontend,gateway,identity-service,crm-relationships-service,deals-service",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "nx run-many -t lint",

@@ -31,9 +31,13 @@ services:
         condition: service_healthy
       crm-relationships-service:
         condition: service_healthy
+      deals-service:
+        condition: service_healthy
     environment:
       AUTH_TOKEN_SECRET: identity-service-dev-secret
       CRM_RELATIONSHIPS_GRAPHQL_URL: http://crm-relationships-service:8000/graphql/
+      DEALS_GRAPHQL_ENABLED: 'true'
+      DEALS_GRAPHQL_URL: http://deals-service:8000/graphql/
       GATEWAY_NAME: samplecrm-gateway
       IDENTITY_GRAPHQL_ENABLED: 'true'
       IDENTITY_GRAPHQL_URL: http://identity-service:8000/graphql/
@@ -133,6 +137,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-crm}
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-crm}
+      CRM_RELATIONSHIPS_GRAPHQL_URL: http://crm-relationships-service:8000/graphql/
       PORT: 8000
     ports:
       - '${DEALS_SERVICE_PORT:-8003}:8000'

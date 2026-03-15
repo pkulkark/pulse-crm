@@ -1,0 +1,77 @@
+import json
+import logging
+import uuid
+
+from ariadne import graphql_sync
+from django.http import HttpResponseNotAllowed, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+from .graphql import schema
+
+
+logger = logging.getLogger(__name__)
+
+
+def build_request_context(request):
+    correlation_id = request.headers.get("X-Correlation-Id") or str(uuid.uuid4())
+    user_id = request.headers.get("X-User-Id") or None
+    user_role = request.headers.get("X-User-Role") or "anonymous"
+    company_id = request.headers.get("X-Company-Id") or None
+
+    return {
+        "companyId": company_id,
+        "correlationId": correlation_id,
+        "user": {
+            "companyId": company_id,
+            "id": user_id,
+            "role": user_role,
+        },
+        "userId": user_id,
+        "userRole": user_role,
+    }
+
+
+def log_graphql_event(event, **fields):
+    logger.info(json.dumps({"event": event, **fields}))
+
+
+@csrf_exempt
+def graphql_endpoint(request):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    try:
+        payload = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "errors": [
+                    {
+                        "message": "Request body must be valid JSON.",
+                    },
+                ],
+            },
+            status=400,
+        )
+
+    request_context = build_request_context(request)
+    log_graphql_event(
+        "deals_graphql_request",
+        correlationId=request_context["correlationId"],
+        operationName=payload.get("operationName"),
+        companyId=request_context["companyId"],
+        userId=request_context["userId"],
+        userRole=request_context["userRole"],
+    )
+    success, result = graphql_sync(
+        schema,
+        payload,
+        context_value={"request_context": request_context},
+    )
+    log_graphql_event(
+        "deals_graphql_response",
+        correlationId=request_context["correlationId"],
+        errorCount=len(result.get("errors", [])),
+    )
+
+    return JsonResponse(result, status=200 if success else 400)

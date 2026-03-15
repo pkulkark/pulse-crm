@@ -12,6 +12,12 @@ Implement sales opportunities with clear lifecycle ownership in a dedicated serv
 - deal status transitions
 - federation references to company and contact
 
+## API Contract
+
+Use the phase-specific contract in [phase-4-deals-service.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-4-deals-service.md).
+
+The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
+
 ## Engineering Standards
 
 - code quality must be industry-standard and production-level
@@ -22,13 +28,14 @@ Implement sales opportunities with clear lifecycle ownership in a dedicated serv
 
 ## Work Breakdown
 
-1. Implement the `Deal` model and migrations.
-2. Implement `createDeal`.
-3. Implement `updateDealStatus`.
-4. Validate `company_id` and `primary_contact_id` relationships.
-5. Implement deal list and detail queries.
-6. Add federation fields for company and primary contact references.
-7. Add tests for valid and invalid status transitions.
+1. Confirm and implement the API contract for deal reads and writes.
+2. Implement the `Deal` model and migrations.
+3. Implement `createDeal`.
+4. Implement `updateDealStatus`.
+5. Validate `company_id` and `primary_contact_id` relationships.
+6. Implement deal list and detail queries.
+7. Add federation fields for company and primary contact references.
+8. Add tests for valid and invalid status transitions.
 
 ## Deliverables
 
@@ -36,6 +43,7 @@ Implement sales opportunities with clear lifecycle ownership in a dedicated serv
 - deal list/detail queries
 - status transition logic
 - gateway access to deal data with federated company/contact views
+- phase-specific API contract documented and implemented
 
 ## Acceptance Criteria
 
@@ -43,6 +51,7 @@ Implement sales opportunities with clear lifecycle ownership in a dedicated serv
 - a deal status can be updated through the gateway
 - invalid references or transitions are rejected clearly
 - company and primary contact resolve through federation
+- implemented schema matches the documented Phase 4 contract, or any deviation is documented
 
 ## Out of Scope
 
@@ -54,4 +63,3 @@ Implement sales opportunities with clear lifecycle ownership in a dedicated serv
 - create a deal with and without a primary contact
 - update status and verify the persisted change
 - verify federated reads include company/contact data
-

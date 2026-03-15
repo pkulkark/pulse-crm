@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 
@@ -17,6 +18,7 @@ ALLOWED_HOSTS = [
 
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
+    "apps.deals",
     "apps.health",
 ]
 
@@ -31,15 +33,33 @@ TEMPLATES = []
 WSGI_APPLICATION = "deals_service.wsgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "deals_service"),
-        "USER": os.environ.get("DB_USER", "crm"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "crm"),
-        "HOST": os.environ.get("DB_HOST", "deals-db"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
-    }
+    "default": (
+        {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test.sqlite3",
+        }
+        if "test" in sys.argv
+        else {
+            "ENGINE": os.environ.get(
+                "DB_ENGINE",
+                "django.db.backends.postgresql",
+            ),
+            "NAME": os.environ.get("DB_NAME", "deals_service"),
+            "USER": os.environ.get("DB_USER", "crm"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", "crm"),
+            "HOST": os.environ.get("DB_HOST", "deals-db"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    )
 }
+
+CRM_RELATIONSHIPS_GRAPHQL_URL = os.environ.get(
+    "CRM_RELATIONSHIPS_GRAPHQL_URL",
+    "http://127.0.0.1:8002/graphql/",
+)
+CRM_RELATIONSHIPS_GRAPHQL_TIMEOUT_SECONDS = float(
+    os.environ.get("CRM_RELATIONSHIPS_GRAPHQL_TIMEOUT_SECONDS", "5"),
+)
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
