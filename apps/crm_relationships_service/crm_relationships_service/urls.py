@@ -6,8 +6,9 @@ def placeholder_root(_request):
     return JsonResponse(
         {
             "service": "crm-relationships-service",
-            "message": "Phase 0 placeholder. CRM relationships implementation starts in Phase 3.",
+            "message": "Sample GraphQL subgraph placeholder. CRM relationships implementation starts in a later slice.",
             "health": "/health/",
+            "graphql": "/graphql/",
         },
     )
 
@@ -16,4 +17,3 @@ urlpatterns = [
     path("", placeholder_root),
     path("", include("apps.health.urls")),
 ]
-

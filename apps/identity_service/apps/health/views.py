@@ -6,7 +6,5 @@ def health_check(_request):
         {
             "service": "identity-service",
             "status": "ok",
-            "phase": "phase-0",
         },
     )
-

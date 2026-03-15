@@ -26,7 +26,11 @@ services:
     build:
       context: .
       dockerfile: infra/docker/gateway.Dockerfile
+    depends_on:
+      crm-relationships-service:
+        condition: service_healthy
     environment:
+      CRM_RELATIONSHIPS_GRAPHQL_URL: http://crm-relationships-service:8000/graphql/
       GATEWAY_NAME: samplecrm-gateway
       PORT: 4000
     ports:
@@ -37,7 +41,7 @@ services:
           'CMD',
           'node',
           '-e',
-          "fetch('http://127.0.0.1:4000/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:4000/ready').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s

@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@apollo/gateway": "^2.11.3",
+    "@apollo/server": "^5.0.0",
+    "graphql": "^16.10.0"
+  },
   "scripts": {
     "dev": "node --watch src/server.mjs",
     "lint": "eslint src --ext .mjs",

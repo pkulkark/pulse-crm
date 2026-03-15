@@ -3,7 +3,7 @@ const serviceCards = [
     name: 'Gateway',
     description:
       'Single entry point for the frontend and future external GraphQL clients.',
-    path: '/health',
+    path: '/ready',
     port: 4000,
   },
   {
@@ -36,15 +36,15 @@ export function App() {
   return (
     <main className="page-shell">
       <section className="hero">
-        <p className="eyebrow">Phase 0 Workspace</p>
+        <p className="eyebrow">Sample Workspace</p>
         <h1>SampleCRM foundation is running.</h1>
         <p className="lede">
           This frontend is intentionally small. It exists to prove the
           workspace, runtime, and service boundaries without pulling later
-          phases forward.
+          implementation slices forward.
         </p>
         <a className="gateway-link" href={gatewayUrl}>
-          Gateway placeholder
+          Gateway entry point
         </a>
       </section>
 

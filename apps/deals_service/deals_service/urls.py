@@ -6,7 +6,7 @@ def placeholder_root(_request):
     return JsonResponse(
         {
             "service": "deals-service",
-            "message": "Phase 0 placeholder. Deal workflows start in Phase 4.",
+            "message": "Sample service placeholder. Deal workflows start in a later slice.",
             "health": "/health/",
         },
     )
@@ -16,4 +16,3 @@ urlpatterns = [
     path("", placeholder_root),
     path("", include("apps.health.urls")),
 ]
-
