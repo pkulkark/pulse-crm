@@ -12,6 +12,12 @@ Implement the company and contact foundation that anchors the rest of the CRM do
 - admin-only company/contact mutations
 - gateway-exposed company and contact reads
 
+## API Contract
+
+Use the phase-specific contract in [phase-3-crm-relationships-part-1.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-3-crm-relationships-part-1.md).
+
+The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
+
 ## Engineering Standards
 
 - code quality must be industry-standard and production-level
@@ -22,13 +28,14 @@ Implement the company and contact foundation that anchors the rest of the CRM do
 
 ## Work Breakdown
 
-1. Implement `Company` and `Contact` models and migrations.
-2. Add constraints for parent-child hierarchy integrity.
-3. Implement create and update mutations for companies and contacts.
-4. Implement list and detail queries for companies and contacts.
-5. Enforce admin-only write access for company/contact mutations.
-6. Expose fields needed by downstream federation.
-7. Add tests for hierarchy validation and permission checks.
+1. Confirm and implement the API contract for company and contact reads/writes.
+2. Implement `Company` and `Contact` models and migrations.
+3. Add constraints for parent-child hierarchy integrity.
+4. Implement create and update mutations for companies and contacts.
+5. Implement list and detail queries for companies and contacts.
+6. Enforce admin-only write access for company/contact mutations.
+7. Expose fields needed by downstream federation.
+8. Add tests for hierarchy validation and permission checks.
 
 ## Deliverables
 
@@ -36,6 +43,7 @@ Implement the company and contact foundation that anchors the rest of the CRM do
 - hierarchical company data
 - admin-only company/contact writes
 - gateway query support for company and contact data
+- phase-specific API contract documented and implemented
 
 ## Acceptance Criteria
 
@@ -43,6 +51,7 @@ Implement the company and contact foundation that anchors the rest of the CRM do
 - admin can create contacts under a company
 - non-admin users cannot create or edit companies or contacts
 - company list and company detail data resolve through the gateway
+- implemented schema matches the documented Phase 3 contract, or any deviation is documented
 
 ## Out of Scope
 
@@ -55,4 +64,3 @@ Implement the company and contact foundation that anchors the rest of the CRM do
 - create parent and child companies
 - verify company detail shows hierarchy
 - create contacts and verify they are scoped to one company
-

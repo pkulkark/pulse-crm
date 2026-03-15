@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 
@@ -17,6 +18,7 @@ ALLOWED_HOSTS = [
 
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
+    "apps.crm",
     "apps.health",
 ]
 
@@ -31,14 +33,24 @@ TEMPLATES = []
 WSGI_APPLICATION = "crm_relationships_service.wsgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "crm_relationships_service"),
-        "USER": os.environ.get("DB_USER", "crm"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "crm"),
-        "HOST": os.environ.get("DB_HOST", "crm-db"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
-    }
+    "default": (
+        {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test.sqlite3",
+        }
+        if "test" in sys.argv
+        else {
+            "ENGINE": os.environ.get(
+                "DB_ENGINE",
+                "django.db.backends.postgresql",
+            ),
+            "NAME": os.environ.get("DB_NAME", "crm_relationships_service"),
+            "USER": os.environ.get("DB_USER", "crm"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", "crm"),
+            "HOST": os.environ.get("DB_HOST", "crm-db"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    )
 }
 
 LANGUAGE_CODE = "en-us"

@@ -261,21 +261,99 @@ curl http://localhost:4000/ \
   -d '{"query":"query { me { id } }"}'
 ```
 
-### Downstream Context Propagation
-
-```bash
-curl http://localhost:4000/ \
-  -H 'content-type: application/json' \
-  -H 'authorization: Bearer <TOKEN>' \
-  -d '{"query":"query { serviceHealth { service status requestContext { companyId correlationId userId userRole } } }"}'
-```
-
 Expected result:
 
 - login returns a token and user object
 - `me` returns the authenticated user
 - invalid tokens fail with `401`
-- downstream request context includes trusted `userId`, `userRole`, and `companyId`
+
+## CRM Relationships Gateway Checks
+
+Use these checks when the company/contact flow changes. Run them against the Docker Compose runtime so the gateway, identity service, and CRM relationships service are all participating.
+
+Start the required containers:
+
+```bash
+docker compose up -d --build identity-service crm-relationships-service gateway
+curl http://localhost:4000/health
+curl http://localhost:8101/health/
+curl http://localhost:8002/health/
+```
+
+Get tokens for both roles:
+
+```bash
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -d '{"query":"mutation { login(input: { email: \"admin@example.com\", password: \"secret\" }) { token user { id email role companyId } } }"}'
+
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -d '{"query":"mutation { login(input: { email: \"manager@example.com\", password: \"secret\" }) { token user { id email role companyId } } }"}'
+```
+
+Create a parent company, a child company, and a contact as admin:
+
+```bash
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <ADMIN_TOKEN>' \
+  -d '{"query":"mutation { createCompany(input: { name: \"Verification Parent\" }) { id name parentCompanyId } }"}'
+
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <ADMIN_TOKEN>' \
+  -d '{"query":"mutation { createCompany(input: { name: \"Verification Child\", parentCompanyId: \"<PARENT_COMPANY_ID>\" }) { id name parentCompanyId } }"}'
+
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <ADMIN_TOKEN>' \
+  -d '{"query":"mutation { createContact(input: { companyId: \"<PARENT_COMPANY_ID>\", name: \"Verification Contact\", email: \"verification.contact@example.com\", jobTitle: \"Owner\" }) { id companyId name email jobTitle } }"}'
+```
+
+Verify the company list and company detail through the gateway:
+
+```bash
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <ADMIN_TOKEN>' \
+  -d '{"query":"query { companies { id name } company(id: \"<PARENT_COMPANY_ID>\") { id name parentCompany { id name } childCompanies { id name } contacts { id name email jobTitle } } }"}'
+```
+
+Verify the write restriction for non-admin users:
+
+```bash
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <MANAGER_TOKEN>' \
+  -d '{"query":"mutation { createCompany(input: { name: \"Should Be Blocked\" }) { id } }"}'
+```
+
+Verify scoped reads for non-admin users:
+
+```bash
+curl http://localhost:4000/ \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <MANAGER_TOKEN>' \
+  -d '{"query":"query { company(id: \"<PARENT_COMPANY_ID>\") { id name } }"}'
+```
+
+Expected result:
+
+- gateway, identity service, and CRM relationships service health checks all return `ok`
+- admin login returns a usable bearer token
+- manager login returns a usable bearer token
+- admin can create a parent company and a child company
+- admin can create a contact under the parent company
+- `company(id)` returns the parent company with its child company and contact data
+- manager `createCompany` fails with a `FORBIDDEN` GraphQL error
+- manager `company(id)` returns `null` for records outside the current scoped-read model
+
+Optional cleanup:
+
+```bash
+docker compose stop gateway identity-service crm-relationships-service
+```
 
 ## Quick Regression Checklist
 

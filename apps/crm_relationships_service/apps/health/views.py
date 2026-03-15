@@ -6,7 +6,7 @@ from ariadne import graphql_sync
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from .graphql import schema
+from apps.crm.graphql import schema
 
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,11 @@ def build_request_context(request):
     return {
         "companyId": company_id,
         "correlationId": correlation_id,
+        "user": {
+            "companyId": company_id,
+            "id": user_id,
+            "role": user_role,
+        },
         "userId": user_id,
         "userRole": user_role,
     }

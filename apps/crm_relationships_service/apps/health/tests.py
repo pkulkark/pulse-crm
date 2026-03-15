@@ -10,49 +10,6 @@ class HealthCheckTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
 
-    def test_graphql_service_health_returns_forwarded_request_context(self):
-        response = self.client.post(
-            "/graphql/",
-            data=json.dumps(
-                {
-                    "query": """
-                        query ServiceHealth {
-                            serviceHealth {
-                                service
-                                status
-                                requestContext {
-                                    companyId
-                                    correlationId
-                                    userId
-                                    userRole
-                                }
-                            }
-                        }
-                    """
-                }
-            ),
-            content_type="application/json",
-            HTTP_X_COMPANY_ID="company-9",
-            HTTP_X_CORRELATION_ID="corr-123",
-            HTTP_X_USER_ID="user-7",
-            HTTP_X_USER_ROLE="manager",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()["data"]["serviceHealth"],
-            {
-                "requestContext": {
-                    "companyId": "company-9",
-                    "correlationId": "corr-123",
-                    "userId": "user-7",
-                    "userRole": "manager",
-                },
-                "service": "crm-relationships-service",
-                "status": "ok",
-            },
-        )
-
     def test_graphql_endpoint_exposes_federation_service_definition(self):
         response = self.client.post(
             "/graphql/",
@@ -71,4 +28,4 @@ class HealthCheckTests(SimpleTestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("serviceHealth", response.json()["data"]["_service"]["sdl"])
+        self.assertIn("type Company", response.json()["data"]["_service"]["sdl"])
