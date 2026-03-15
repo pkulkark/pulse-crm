@@ -60,6 +60,18 @@ CRM_RELATIONSHIPS_GRAPHQL_URL = os.environ.get(
 CRM_RELATIONSHIPS_GRAPHQL_TIMEOUT_SECONDS = float(
     os.environ.get("CRM_RELATIONSHIPS_GRAPHQL_TIMEOUT_SECONDS", "5"),
 )
+KAFKA_BOOTSTRAP_SERVERS = [
+    server.strip()
+    for server in os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092").split(",")
+    if server.strip()
+]
+DEAL_STATUS_CHANGED_TOPIC = os.environ.get(
+    "DEAL_STATUS_CHANGED_TOPIC",
+    "deal.status_changed",
+)
+KAFKA_PRODUCER_TIMEOUT_SECONDS = float(
+    os.environ.get("KAFKA_PRODUCER_TIMEOUT_SECONDS", "5"),
+)
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -67,3 +79,22 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        }
+    },
+    "loggers": {
+        "kafka": {
+            "level": "WARNING",
+        }
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO"),
+    },
+}

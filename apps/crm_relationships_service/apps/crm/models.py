@@ -92,3 +92,37 @@ class Contact(models.Model):
 
         super().save(*args, **kwargs)
 
+
+class TaskStatus(models.TextChoices):
+    OPEN = "OPEN", "Open"
+    COMPLETED = "COMPLETED", "Completed"
+
+
+class TaskPriority(models.TextChoices):
+    NORMAL = "NORMAL", "Normal"
+
+
+class Task(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    company_id = models.UUIDField(db_index=True)
+    deal_id = models.UUIDField(db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=TaskStatus.choices,
+        default=TaskStatus.OPEN,
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=TaskPriority.choices,
+        default=TaskPriority.NORMAL,
+    )
+    source_event_id = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+
+    def __str__(self):
+        return self.title

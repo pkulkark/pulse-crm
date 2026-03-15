@@ -104,12 +104,18 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-crm}
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-crm}
+      DEAL_STATUS_CHANGED_TOPIC: deal.status_changed
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CONSUMER_ENABLED: 'true'
+      KAFKA_CONSUMER_GROUP: crm-relationships-service
       PORT: 8000
     ports:
       - '${CRM_RELATIONSHIPS_SERVICE_PORT:-8002}:8000'
     depends_on:
       crm-db:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -138,12 +144,16 @@ services:
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-crm}
       CRM_RELATIONSHIPS_GRAPHQL_URL: http://crm-relationships-service:8000/graphql/
+      DEAL_STATUS_CHANGED_TOPIC: deal.status_changed
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       PORT: 8000
     ports:
       - '${DEALS_SERVICE_PORT:-8003}:8000'
     depends_on:
       deals-db:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -212,5 +222,42 @@ services:
 
   kafka:
     image: apache/kafka:3.7.2
+    hostname: kafka
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_NODE_ID: 1
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     ports:
       - '${KAFKA_PORT:-9092}:9092'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          '/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  kafka-init:
+    image: apache/kafka:3.7.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      [
+        '/bin/sh',
+        '-c',
+        '/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic deal.status_changed --partitions 1 --replication-factor 1',
+      ]

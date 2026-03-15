@@ -1,9 +1,11 @@
 import json
 import uuid
+from types import SimpleNamespace
 
 from django.test import TestCase
 
-from .models import Company, Contact
+from .consumer import handle_consumer_message
+from .models import Company, Contact, Task
 
 
 class CrmGraphQLTests(TestCase):
@@ -347,3 +349,67 @@ class CrmGraphQLTests(TestCase):
             "Contact with this Company and Email already exists.",
         )
 
+
+class DealStatusChangedConsumerTests(TestCase):
+    def build_message(self, *, event_id="evt-123", new_status="QUALIFIED"):
+        return SimpleNamespace(
+            offset=12,
+            partition=0,
+            topic="deal.status_changed",
+            value={
+                "eventId": event_id,
+                "eventType": "deal.status_changed",
+                "eventVersion": 1,
+                "occurredAt": "2026-03-15T15:30:00Z",
+                "dealId": "22222222-2222-2222-2222-222222222222",
+                "companyId": "11111111-1111-1111-1111-111111111111",
+                "oldStatus": "NEW",
+                "newStatus": new_status,
+            },
+        )
+
+    def test_consumer_creates_follow_up_task_for_qualified_status(self):
+        with self.assertLogs("apps.crm.consumer", level="INFO") as captured_logs:
+            result = handle_consumer_message(self.build_message())
+
+        self.assertEqual(result["outcome"], "task_created")
+        task = Task.objects.get()
+        self.assertEqual(task.title, "Schedule follow-up")
+        self.assertEqual(
+            task.company_id,
+            uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        )
+        self.assertEqual(
+            task.deal_id,
+            uuid.UUID("22222222-2222-2222-2222-222222222222"),
+        )
+        self.assertEqual(task.source_event_id, "evt-123")
+        log_output = "\n".join(captured_logs.output)
+        self.assertIn("deal_status_changed_received", log_output)
+        self.assertIn("task_created", log_output)
+        self.assertIn("eventId", log_output)
+        self.assertIn("dealId", log_output)
+        self.assertIn("companyId", log_output)
+
+    def test_replaying_same_event_does_not_create_duplicate_task(self):
+        handle_consumer_message(self.build_message())
+
+        with self.assertLogs("apps.crm.consumer", level="INFO") as captured_logs:
+            result = handle_consumer_message(self.build_message())
+
+        self.assertEqual(Task.objects.count(), 1)
+        self.assertEqual(result["outcome"], "duplicate_ignored")
+        self.assertIn("duplicate_ignored", "\n".join(captured_logs.output))
+
+    def test_non_qualifying_status_is_logged_as_no_action(self):
+        with self.assertLogs("apps.crm.consumer", level="INFO") as captured_logs:
+            result = handle_consumer_message(
+                self.build_message(
+                    event_id="evt-456",
+                    new_status="WON",
+                )
+            )
+
+        self.assertEqual(result["outcome"], "no_action")
+        self.assertFalse(Task.objects.exists())
+        self.assertIn("no_action", "\n".join(captured_logs.output))

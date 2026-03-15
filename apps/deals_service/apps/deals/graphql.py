@@ -5,9 +5,11 @@ from ariadne import EnumType, MutationType, ObjectType, QueryType, gql
 from ariadne.contrib.federation import make_federated_schema
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import QuerySet
 from graphql import GraphQLError
 
+from .events import emit_deal_status_changed_event
 from .models import Deal, DealStatus
 
 
@@ -355,8 +357,22 @@ def resolve_update_deal_status(_, info, input):
     if instance.status == next_status:
         return instance
 
-    instance.status = next_status
-    return save_deal(instance)
+    old_status = instance.status
+    request_context = info.context["request_context"]
+
+    with transaction.atomic():
+        instance.status = next_status
+        updated_instance = save_deal(instance)
+        transaction.on_commit(
+            lambda: emit_deal_status_changed_event(
+                deal=updated_instance,
+                old_status=old_status,
+                new_status=next_status,
+                correlation_id=request_context["correlationId"],
+            )
+        )
+
+    return updated_instance
 
 
 @deal.field("companyId")

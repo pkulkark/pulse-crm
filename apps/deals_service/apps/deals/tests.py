@@ -1,9 +1,11 @@
 import json
 import uuid
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase
 
+from .events import build_deal_status_changed_event, publish_deal_status_changed_event
 from .models import Deal, DealStatus
 
 
@@ -278,7 +280,52 @@ class DealGraphQLTests(TestCase):
         )
         self.assertIsNone(response.json()["data"]["hidden"])
 
-    def test_update_deal_status_persists_valid_transition(self):
+    @patch("apps.deals.graphql.emit_deal_status_changed_event")
+    def test_update_deal_status_persists_valid_transition(self, mock_emit_event):
+        deal = Deal.objects.create(
+            company_id=uuid.uuid4(),
+            status=DealStatus.NEW,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.graphql(
+                """
+                    mutation UpdateDealStatus($input: UpdateDealStatusInput!) {
+                        updateDealStatus(input: $input) {
+                            id
+                            status
+                        }
+                    }
+                """,
+                variables={
+                    "input": {
+                        "dealId": str(deal.id),
+                        "status": "QUALIFIED",
+                    }
+                },
+                headers=self.admin_headers(),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        deal.refresh_from_db()
+        self.assertEqual(deal.status, DealStatus.QUALIFIED)
+        self.assertEqual(
+            response.json()["data"]["updateDealStatus"]["status"],
+            "QUALIFIED",
+        )
+        mock_emit_event.assert_called_once()
+        self.assertEqual(mock_emit_event.call_args.kwargs["old_status"], DealStatus.NEW)
+        self.assertEqual(
+            mock_emit_event.call_args.kwargs["new_status"],
+            DealStatus.QUALIFIED,
+        )
+        self.assertEqual(
+            mock_emit_event.call_args.kwargs["deal"].id,
+            deal.id,
+        )
+
+    @patch("apps.deals.graphql.emit_deal_status_changed_event")
+    def test_update_deal_status_noop_does_not_publish_event(self, mock_emit_event):
         deal = Deal.objects.create(
             company_id=uuid.uuid4(),
             status=DealStatus.NEW,
@@ -296,19 +343,14 @@ class DealGraphQLTests(TestCase):
             variables={
                 "input": {
                     "dealId": str(deal.id),
-                    "status": "QUALIFIED",
+                    "status": "NEW",
                 }
             },
             headers=self.admin_headers(),
         )
 
         self.assertEqual(response.status_code, 200)
-        deal.refresh_from_db()
-        self.assertEqual(deal.status, DealStatus.QUALIFIED)
-        self.assertEqual(
-            response.json()["data"]["updateDealStatus"]["status"],
-            "QUALIFIED",
-        )
+        mock_emit_event.assert_not_called()
 
     def test_update_deal_status_rejects_invalid_transition(self):
         deal = Deal.objects.create(
@@ -358,3 +400,65 @@ class DealGraphQLTests(TestCase):
             response.json()["errors"][0]["extensions"]["code"],
             "UNAUTHENTICATED",
         )
+
+
+class DealStatusChangedEventTests(TestCase):
+    @patch("apps.deals.events.uuid.uuid4")
+    def test_build_event_matches_documented_contract(self, mock_uuid4):
+        deal = Deal.objects.create(
+            company_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
+            status=DealStatus.QUALIFIED,
+        )
+        Deal.objects.filter(id=deal.id).update(
+            updated_at=datetime(2026, 3, 15, 15, 30, tzinfo=timezone.utc),
+        )
+        deal.refresh_from_db()
+        mock_uuid4.return_value = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+        event = build_deal_status_changed_event(
+            deal=deal,
+            old_status=DealStatus.NEW,
+            new_status=DealStatus.QUALIFIED,
+        )
+
+        self.assertEqual(
+            event,
+            {
+                "eventId": "22222222-2222-2222-2222-222222222222",
+                "eventType": "deal.status_changed",
+                "eventVersion": 1,
+                "occurredAt": "2026-03-15T15:30:00Z",
+                "dealId": str(deal.id),
+                "companyId": "11111111-1111-1111-1111-111111111111",
+                "oldStatus": "NEW",
+                "newStatus": "QUALIFIED",
+            },
+        )
+
+    @patch("apps.deals.events.KafkaProducer")
+    def test_publish_event_logs_trace_identifiers(self, mock_kafka_producer):
+        producer = mock_kafka_producer.return_value
+        producer.send.return_value.get.return_value.topic = "deal.status_changed"
+        producer.send.return_value.get.return_value.partition = 0
+        event = {
+            "eventId": "evt-123",
+            "eventType": "deal.status_changed",
+            "eventVersion": 1,
+            "occurredAt": "2026-03-15T15:30:00Z",
+            "dealId": "deal-42",
+            "companyId": "company-10",
+            "oldStatus": "NEW",
+            "newStatus": "QUALIFIED",
+        }
+
+        with self.assertLogs("apps.deals.events", level="INFO") as captured_logs:
+            publish_deal_status_changed_event(event, correlation_id="corr-123")
+
+        producer.send.assert_called_once_with(
+            "deal.status_changed",
+            key="evt-123",
+            value=event,
+        )
+        self.assertIn("eventId", captured_logs.output[0])
+        self.assertIn("dealId", captured_logs.output[0])
+        self.assertIn("companyId", captured_logs.output[0])

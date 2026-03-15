@@ -12,6 +12,12 @@ Implement the core asynchronous workflow: a deal status change publishes an even
 - consumer in `CRM Relationships`
 - idempotent task creation behavior
 
+## Event Contract
+
+Use the phase-specific contract in [phase-5-deal-status-changed-event.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-5-deal-status-changed-event.md).
+
+The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
+
 ## Engineering Standards
 
 - code quality must be industry-standard and production-level
@@ -23,11 +29,11 @@ Implement the core asynchronous workflow: a deal status change publishes an even
 ## Work Breakdown
 
 1. Add Kafka and required topics to Docker Compose.
-2. Define the event payload contract.
+2. Confirm and implement the `deal.status_changed` event contract.
 3. Publish `deal.status_changed` from the `Deals` service after successful status updates.
 4. Implement a consumer in `CRM Relationships`.
 5. Create follow-up tasks based on the new status.
-6. Add idempotency handling using `event_id` or equivalent deduplication key.
+6. Add idempotency handling using `eventId` or equivalent deduplication key.
 7. Add logs and metrics hooks around publish and consume paths.
 8. Add tests for event publication and duplicate handling.
 
@@ -36,6 +42,7 @@ Implement the core asynchronous workflow: a deal status change publishes an even
 - end-to-end asynchronous task creation
 - visible eventual consistency path
 - bounded retry and deduplication behavior
+- phase-specific event contract documented and implemented
 
 ## Acceptance Criteria
 
@@ -43,6 +50,7 @@ Implement the core asynchronous workflow: a deal status change publishes an even
 - consumer receives the event and creates the expected task
 - duplicate delivery does not create duplicate tasks
 - logs are sufficient to trace a request from mutation to task creation
+- implemented event payload matches the documented Phase 5 contract, or any deviation is documented
 
 ## Out of Scope
 
@@ -55,4 +63,3 @@ Implement the core asynchronous workflow: a deal status change publishes an even
 - update a deal status and inspect logs across services
 - verify task creation through API or DB
 - replay the same event and verify no duplicate task is created
-
