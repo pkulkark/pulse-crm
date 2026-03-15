@@ -1,0 +1,11 @@
+{
+  "name": "@samplecrm/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "lint": "eslint src --ext .mjs",
+    "start": "node src/server.mjs"
+  }
+}

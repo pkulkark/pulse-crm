@@ -1,0 +1,6 @@
+[project]
+name = "deals-service"
+version = "0.0.0"
+description = "SampleCRM deals service"
+requires-python = ">=3.9"
+

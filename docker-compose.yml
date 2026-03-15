@@ -1,0 +1,202 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+    environment:
+      VITE_GATEWAY_URL: http://localhost:${GATEWAY_PORT:-4000}
+    ports:
+      - '${FRONTEND_PORT:-3000}:3000'
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/docker/gateway.Dockerfile
+    environment:
+      GATEWAY_NAME: samplecrm-gateway
+      PORT: 4000
+    ports:
+      - '${GATEWAY_PORT:-4000}:4000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4000/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: infra/docker/django-service.Dockerfile
+      args:
+        SERVICE_DIR: apps/identity_service
+    environment:
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,identity-service
+      DJANGO_DEBUG: 'true'
+      DJANGO_SECRET_KEY: identity-service-dev-secret
+      DB_HOST: identity-db
+      DB_NAME: ${POSTGRES_DB_IDENTITY:-identity_service}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-crm}
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-crm}
+      PORT: 8000
+    ports:
+      - '${IDENTITY_SERVICE_PORT:-8001}:8000'
+    depends_on:
+      identity-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  crm-relationships-service:
+    build:
+      context: .
+      dockerfile: infra/docker/django-service.Dockerfile
+      args:
+        SERVICE_DIR: apps/crm_relationships_service
+    environment:
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,crm-relationships-service
+      DJANGO_DEBUG: 'true'
+      DJANGO_SECRET_KEY: crm-relationships-service-dev-secret
+      DB_HOST: crm-db
+      DB_NAME: ${POSTGRES_DB_CRM:-crm_relationships_service}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-crm}
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-crm}
+      PORT: 8000
+    ports:
+      - '${CRM_RELATIONSHIPS_SERVICE_PORT:-8002}:8000'
+    depends_on:
+      crm-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  deals-service:
+    build:
+      context: .
+      dockerfile: infra/docker/django-service.Dockerfile
+      args:
+        SERVICE_DIR: apps/deals_service
+    environment:
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,deals-service
+      DJANGO_DEBUG: 'true'
+      DJANGO_SECRET_KEY: deals-service-dev-secret
+      DB_HOST: deals-db
+      DB_NAME: ${POSTGRES_DB_DEALS:-deals_service}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-crm}
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-crm}
+      PORT: 8000
+    ports:
+      - '${DEALS_SERVICE_PORT:-8003}:8000'
+    depends_on:
+      deals-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  identity-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_IDENTITY:-identity_service}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm}
+      POSTGRES_USER: ${POSTGRES_USER:-crm}
+    ports:
+      - '${IDENTITY_DB_PORT:-5433}:5432'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB_IDENTITY:-identity_service}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  crm-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_CRM:-crm_relationships_service}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm}
+      POSTGRES_USER: ${POSTGRES_USER:-crm}
+    ports:
+      - '${CRM_DB_PORT:-5434}:5432'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB_CRM:-crm_relationships_service}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  deals-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_DEALS:-deals_service}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm}
+      POSTGRES_USER: ${POSTGRES_USER:-crm}
+    ports:
+      - '${DEALS_DB_PORT:-5435}:5432'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB_DEALS:-deals_service}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.7.2
+    ports:
+      - '${KAFKA_PORT:-9092}:9092'

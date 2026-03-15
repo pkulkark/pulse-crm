@@ -1,0 +1,6 @@
+[project]
+name = "identity-service"
+version = "0.0.0"
+description = "SampleCRM identity/access service"
+requires-python = ">=3.9"
+

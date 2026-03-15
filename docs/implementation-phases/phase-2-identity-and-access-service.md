@@ -1,0 +1,54 @@
+# Phase 2: Identity and Access Service
+
+## Objective
+
+Implement internal user identity and role awareness so later services can authorize requests correctly.
+
+## Scope
+
+- `User` model
+- authentication flow suitable for the initial implementation
+- role-aware request context
+- GraphQL operations such as `me`
+
+## Engineering Standards
+
+- code quality must be industry-standard and production-level
+- keep authentication simple, explicit, and explainable
+- do not overengineer identity with unnecessary providers or permission matrices at this stage
+- avoid overly defensive auth code that duplicates checks in multiple layers without clear ownership
+- validate credentials and tokens at the boundary, then pass trusted context downstream
+
+## Work Breakdown
+
+1. Implement the `User` model and migrations.
+2. Seed at least one admin user and one non-admin user.
+3. Implement the chosen login/authentication mechanism.
+4. Expose `me` and any minimal user lookup needed by the system.
+5. Add user identity and role fields to gateway-to-service context propagation.
+6. Add tests for login success, login failure, and role propagation.
+
+## Deliverables
+
+- working user authentication
+- trusted user context available downstream
+- role information exposed to later services
+
+## Acceptance Criteria
+
+- login works end-to-end
+- `me` returns the authenticated user and role
+- requests without valid identity are rejected
+- downstream services can consume trusted user context
+
+## Out of Scope
+
+- SSO
+- refresh-token lifecycle management
+- multi-company membership
+
+## Recommended Verification
+
+- authenticate as admin and non-admin users
+- verify user context is visible in gateway and downstream logs
+- verify unauthenticated requests fail predictably

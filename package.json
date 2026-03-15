@@ -1,0 +1,25 @@
+{
+  "name": "sample-crm",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/frontend",
+    "apps/gateway"
+  ],
+  "scripts": {
+    "build": "nx run-many -t build",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "nx run-many -t lint",
+    "nx": "nx",
+    "serve": "nx run-many -t serve --projects=frontend,gateway,identity-service,crm-relationships-service,deals-service",
+    "test": "nx run-many -t test --projects=workspace,frontend,gateway,identity-service,crm-relationships-service,deals-service"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "eslint": "^9.22.0",
+    "globals": "^16.0.0",
+    "nx": "^21.0.3",
+    "prettier": "^3.5.3"
+  }
+}

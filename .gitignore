@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.pytest_cache/
+.ruff_cache/
+.nx/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+node_modules/
+dist/
+coverage/
+npm-debug.log*

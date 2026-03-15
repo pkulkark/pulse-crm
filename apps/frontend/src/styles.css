@@ -1,0 +1,104 @@
+:root {
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  color: #172033;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(255, 183, 3, 0.22),
+      transparent 34%
+    ),
+    linear-gradient(135deg, #f7f3eb 0%, #dbe7f5 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.page-shell {
+  min-height: 100vh;
+  padding: 48px 24px 72px;
+}
+
+.hero {
+  max-width: 720px;
+  margin: 0 auto 40px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: #6f4e37;
+}
+
+.hero h1 {
+  margin: 0 0 16px;
+  font-family: 'Fraunces', 'Georgia', serif;
+  font-size: clamp(2.5rem, 6vw, 4.75rem);
+  line-height: 0.98;
+}
+
+.lede {
+  margin: 0 0 24px;
+  max-width: 52ch;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.gateway-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #172033;
+  color: #fff;
+  text-decoration: none;
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.service-card {
+  padding: 20px;
+  border: 1px solid rgba(23, 32, 51, 0.14);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+}
+
+.service-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.service-copy {
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.service-meta {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #4c5c77;
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    padding-inline: 16px;
+  }
+}

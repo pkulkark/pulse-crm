@@ -1,0 +1,6 @@
+[project]
+name = "crm-relationships-service"
+version = "0.0.0"
+description = "SampleCRM CRM relationships service"
+requires-python = ">=3.9"
+

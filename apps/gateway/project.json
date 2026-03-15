@@ -1,0 +1,31 @@
+{
+  "name": "gateway",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/gateway/src",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --check apps/gateway/src/server.mjs"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint --workspace @samplecrm/gateway"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "PORT=4000 npm run start --workspace @samplecrm/gateway"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test apps/gateway/src/server.test.mjs"
+      }
+    }
+  }
+}

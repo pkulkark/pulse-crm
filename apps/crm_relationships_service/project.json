@@ -1,0 +1,31 @@
+{
+  "name": "crm-relationships-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/crm_relationships_service",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 scripts/verify_phase0.py --mode django-service --service crm_relationships_service"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 scripts/verify_phase0.py --mode django-service --service crm_relationships_service"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cd apps/crm_relationships_service && python3 manage.py runserver 0.0.0.0:8000"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 scripts/verify_phase0.py --mode django-test --service crm_relationships_service"
+      }
+    }
+  }
+}

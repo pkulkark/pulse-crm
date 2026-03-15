@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "sharedGlobals": [
+      "{workspaceRoot}/.editorconfig",
+      "{workspaceRoot}/.prettierrc.json",
+      "{workspaceRoot}/ruff.toml"
+    ]
+  },
+  "targetDefaults": {
+    "build": {
+      "inputs": ["default", "^default"]
+    },
+    "lint": {
+      "inputs": ["default", "^default"]
+    },
+    "test": {
+      "inputs": ["default", "^default"]
+    }
+  }
+}
