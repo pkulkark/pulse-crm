@@ -6,25 +6,25 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python3 scripts/verify_phase0.py --mode django-service --service identity_service"
+        "command": "cd apps/identity_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python3 scripts/verify_phase0.py --mode django-service --service identity_service"
+        "command": "cd apps/identity_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "cd apps/identity_service && python3 manage.py runserver 0.0.0.0:8000"
+        "command": "cd apps/identity_service && DB_HOST=127.0.0.1 DB_PORT=5433 ../../.venv/bin/python manage.py runserver 0.0.0.0:8101"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python3 scripts/verify_phase0.py --mode django-test --service identity_service"
+        "command": "cd apps/identity_service && ../../.venv/bin/python manage.py test"
       }
     }
   }

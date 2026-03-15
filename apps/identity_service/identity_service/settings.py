@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 
@@ -16,8 +17,12 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
     "django.contrib.staticfiles",
     "apps.health",
+    "apps.identity_access",
+    "apps.users",
 ]
 
 MIDDLEWARE = [
@@ -31,14 +36,24 @@ TEMPLATES = []
 WSGI_APPLICATION = "identity_service.wsgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "identity_service"),
-        "USER": os.environ.get("DB_USER", "crm"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "crm"),
-        "HOST": os.environ.get("DB_HOST", "identity-db"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
-    }
+    "default": (
+        {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test.sqlite3",
+        }
+        if "test" in sys.argv
+        else {
+            "ENGINE": os.environ.get(
+                "DB_ENGINE",
+                "django.db.backends.postgresql",
+            ),
+            "NAME": os.environ.get("DB_NAME", "identity_service"),
+            "USER": os.environ.get("DB_USER", "crm"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", "crm"),
+            "HOST": os.environ.get("DB_HOST", "identity-db"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    )
 }
 
 LANGUAGE_CODE = "en-us"
@@ -47,3 +62,6 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = "users.User"
+AUTH_TOKEN_SECRET = os.environ.get("AUTH_TOKEN_SECRET", SECRET_KEY)
+AUTH_TOKEN_TTL_SECONDS = int(os.environ.get("AUTH_TOKEN_TTL_SECONDS", "28800"))

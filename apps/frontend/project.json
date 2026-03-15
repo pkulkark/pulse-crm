@@ -24,7 +24,7 @@
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python3 scripts/verify_phase0.py --mode frontend"
+        "command": "node -e \"const fs=require('node:fs'); const required=['apps/frontend/package.json','apps/frontend/project.json','apps/frontend/index.html','apps/frontend/src/App.jsx','apps/frontend/src/main.jsx','apps/frontend/src/styles.css','apps/frontend/vite.config.js']; for (const file of required) { if (!fs.existsSync(file)) { throw new Error('Missing required file: ' + file); } } const appSource=fs.readFileSync('apps/frontend/src/App.jsx','utf8'); if (!appSource.includes('Sample Workspace')) { throw new Error('Frontend placeholder copy is missing'); } if (!appSource.includes('Gateway')) { throw new Error('Frontend service list is missing gateway content'); }\""
       }
     }
   }

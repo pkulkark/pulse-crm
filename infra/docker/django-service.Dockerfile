@@ -15,5 +15,4 @@ COPY ${SERVICE_DIR} /app
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py runserver 0.0.0.0:${PORT:-8000}"]
-
+CMD ["sh", "-c", "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:${PORT:-8000}"]

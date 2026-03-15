@@ -37,8 +37,9 @@ tests/
 ## Service endpoints
 
 - frontend: `http://localhost:3000`
-- gateway: `http://localhost:4000/health`
-- identity service: `http://localhost:8001/health/`
+- gateway health: `http://localhost:4000/health`
+- gateway GraphQL: `http://localhost:4000/`
+- identity service: `http://localhost:8101/health/`
 - CRM relationships service: `http://localhost:8002/health/`
 - deals service: `http://localhost:8003/health/`
 

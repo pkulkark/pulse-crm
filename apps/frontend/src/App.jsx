@@ -3,7 +3,7 @@ const serviceCards = [
     name: 'Gateway',
     description:
       'Single entry point for the frontend and future external GraphQL clients.',
-    path: '/ready',
+    path: '/health',
     port: 4000,
   },
   {
@@ -11,7 +11,7 @@ const serviceCards = [
     description:
       'Standard Django service placeholder for identity and authorization concerns.',
     path: '/health/',
-    port: 8001,
+    port: 8101,
   },
   {
     name: 'CRM Relationships Service',

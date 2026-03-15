@@ -25,9 +25,9 @@ export function getGatewayConfig(env = process.env) {
         'http://127.0.0.1:8002/graphql/',
     },
     {
-      enabled: parseBooleanFlag(env.IDENTITY_GRAPHQL_ENABLED, false),
+      enabled: parseBooleanFlag(env.IDENTITY_GRAPHQL_ENABLED, true),
       name: 'identity',
-      url: env.IDENTITY_GRAPHQL_URL ?? 'http://127.0.0.1:8001/graphql/',
+      url: env.IDENTITY_GRAPHQL_URL ?? 'http://127.0.0.1:8101/graphql/',
     },
     {
       enabled: parseBooleanFlag(env.DEALS_GRAPHQL_ENABLED, false),
@@ -49,6 +49,7 @@ export function getGatewayConfig(env = process.env) {
 
   return {
     enabledSubgraphs,
+    authTokenSecret: env.AUTH_TOKEN_SECRET ?? 'identity-service-dev-secret',
     gatewayName: env.GATEWAY_NAME ?? 'samplecrm-gateway',
     host: env.HOST ?? '0.0.0.0',
     port,

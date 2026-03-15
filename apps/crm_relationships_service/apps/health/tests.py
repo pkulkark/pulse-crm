@@ -21,6 +21,7 @@ class HealthCheckTests(SimpleTestCase):
                                 service
                                 status
                                 requestContext {
+                                    companyId
                                     correlationId
                                     userId
                                     userRole
@@ -31,6 +32,7 @@ class HealthCheckTests(SimpleTestCase):
                 }
             ),
             content_type="application/json",
+            HTTP_X_COMPANY_ID="company-9",
             HTTP_X_CORRELATION_ID="corr-123",
             HTTP_X_USER_ID="user-7",
             HTTP_X_USER_ROLE="manager",
@@ -41,6 +43,7 @@ class HealthCheckTests(SimpleTestCase):
             response.json()["data"]["serviceHealth"],
             {
                 "requestContext": {
+                    "companyId": "company-9",
                     "correlationId": "corr-123",
                     "userId": "user-7",
                     "userRole": "manager",

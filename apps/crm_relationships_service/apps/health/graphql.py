@@ -5,6 +5,7 @@ from ariadne.contrib.federation import make_federated_schema
 type_defs = gql(
     """
     type RequestContext {
+      companyId: String
       correlationId: ID!
       userId: String
       userRole: String!

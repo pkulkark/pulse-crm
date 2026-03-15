@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 
+import { authenticateRequest } from './auth.mjs';
+
 export const CONTEXT_HEADERS = Object.freeze({
+  companyId: 'x-company-id',
   correlationId: 'x-correlation-id',
   userId: 'x-user-id',
   userRole: 'x-user-role',
@@ -19,23 +22,17 @@ function normalizeHeaderValue(value) {
   return trimmedValue.length > 0 ? trimmedValue : null;
 }
 
-export function createRequestContext(request) {
+export function createRequestContext(request, authOptions) {
   const correlationId =
     normalizeHeaderValue(request.headers[CONTEXT_HEADERS.correlationId]) ??
     crypto.randomUUID();
-  const userId = normalizeHeaderValue(request.headers[CONTEXT_HEADERS.userId]);
-  const userRole =
-    normalizeHeaderValue(request.headers[CONTEXT_HEADERS.userRole]) ??
-    'anonymous';
+  const user = authenticateRequest(request.headers, authOptions);
 
   return {
     request: {
       clientIp: request.socket?.remoteAddress ?? null,
       correlationId,
     },
-    user: {
-      id: userId,
-      role: userRole,
-    },
+    user,
   };
 }

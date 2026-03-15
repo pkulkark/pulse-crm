@@ -19,25 +19,17 @@ def build_request_context(request):
     company_id = request.headers.get("X-Company-Id") or None
 
     return {
-        "companyId": company_id,
         "correlationId": correlation_id,
-        "userId": user_id,
-        "userRole": user_role,
+        "user": {
+            "companyId": company_id,
+            "id": user_id,
+            "role": user_role,
+        },
     }
 
 
 def log_graphql_event(event, **fields):
     logger.info(json.dumps({"event": event, **fields}))
-
-
-def health_check(_request):
-    return JsonResponse(
-        {
-            "graphql": "/graphql/",
-            "service": "crm-relationships-service",
-            "status": "ok",
-        },
-    )
 
 
 @csrf_exempt
@@ -61,12 +53,11 @@ def graphql_endpoint(request):
 
     request_context = build_request_context(request)
     log_graphql_event(
-        "crm_relationships_graphql_request",
+        "identity_graphql_request",
         correlationId=request_context["correlationId"],
         operationName=payload.get("operationName"),
-        companyId=request_context["companyId"],
-        userId=request_context["userId"],
-        userRole=request_context["userRole"],
+        userId=request_context["user"]["id"],
+        userRole=request_context["user"]["role"],
     )
     success, result = graphql_sync(
         schema,
@@ -74,9 +65,10 @@ def graphql_endpoint(request):
         context_value={"request_context": request_context},
     )
     log_graphql_event(
-        "crm_relationships_graphql_response",
+        "identity_graphql_response",
         correlationId=request_context["correlationId"],
         errorCount=len(result.get("errors", [])),
     )
 
     return JsonResponse(result, status=200 if success else 400)
+

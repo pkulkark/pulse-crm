@@ -10,6 +10,8 @@ Prove that the frontend and external clients communicate only with a single Grap
 - federation wiring
 - request context propagation
 - one minimal health-style federated query path
+- public gateway GraphQL endpoint at `/`
+- gateway health endpoint at `/health`
 
 ## Engineering Standards
 
@@ -22,17 +24,19 @@ Prove that the frontend and external clients communicate only with a single Grap
 ## Work Breakdown
 
 1. Bootstrap the gateway service and expose a GraphQL endpoint.
-2. Define the initial federation configuration for downstream services.
-3. Add a minimal health-style query path that proves composition works.
-4. Prefer a simple field such as `serviceHealth` or `gatewayHealth` that resolves through at least one downstream service rather than designing a real business API this early.
-5. Define the request context shape for user identity, role, and correlation IDs.
-6. Add basic request logging and health endpoints.
+2. Configure the gateway so the public GraphQL endpoint is `/` and the health endpoint is `/health`.
+3. Define the initial federation configuration for downstream services.
+4. Add a minimal health-style query path that proves composition works.
+5. Prefer a simple field such as `serviceHealth` or `gatewayHealth` that resolves through at least one downstream service rather than designing a real business API this early.
+6. Define the request context shape for user identity, role, and correlation IDs.
+7. Add basic request logging and health endpoints.
 
 ## Deliverables
 
 - running GraphQL gateway
 - one working health-style query through the gateway to at least one downstream service
 - request context shape defined for later phases
+- gateway endpoint convention documented and implemented
 
 ## Acceptance Criteria
 
@@ -40,6 +44,7 @@ Prove that the frontend and external clients communicate only with a single Grap
 - the gateway reaches at least one downstream service
 - the initial proof query is a health-style field, not a real business API contract
 - request context is available to downstream resolvers in a consistent format
+- the public GraphQL endpoint is `/` and the health endpoint is `/health`
 
 ## Out of Scope
 

@@ -27,11 +27,16 @@ services:
       context: .
       dockerfile: infra/docker/gateway.Dockerfile
     depends_on:
+      identity-service:
+        condition: service_healthy
       crm-relationships-service:
         condition: service_healthy
     environment:
+      AUTH_TOKEN_SECRET: identity-service-dev-secret
       CRM_RELATIONSHIPS_GRAPHQL_URL: http://crm-relationships-service:8000/graphql/
       GATEWAY_NAME: samplecrm-gateway
+      IDENTITY_GRAPHQL_ENABLED: 'true'
+      IDENTITY_GRAPHQL_URL: http://identity-service:8000/graphql/
       PORT: 4000
     ports:
       - '${GATEWAY_PORT:-4000}:4000'
@@ -41,7 +46,7 @@ services:
           'CMD',
           'node',
           '-e',
-          "fetch('http://127.0.0.1:4000/ready').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:4000/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
@@ -64,7 +69,7 @@ services:
       DB_USER: ${POSTGRES_USER:-crm}
       PORT: 8000
     ports:
-      - '${IDENTITY_SERVICE_PORT:-8001}:8000'
+      - '${IDENTITY_SERVICE_PORT:-8101}:8000'
     depends_on:
       identity-db:
         condition: service_healthy

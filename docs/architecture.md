@@ -202,6 +202,22 @@ Kafka is used for asynchronous workflows between services.
 
 It should not be used to reshape the Django services into a non-idiomatic structure. Each backend service should still be a normal Django project with standard Python tooling, migrations, and application layout.
 
+### Endpoint Convention
+
+The gateway is the single public GraphQL entry point and should expose GraphQL at:
+
+- `/`
+
+The gateway should expose a separate health endpoint at:
+
+- `/health`
+
+Internal subgraph services may expose GraphQL at a more explicit internal path such as:
+
+- `/graphql`
+
+This keeps the public graph simple while keeping internal service endpoints conventional and easy to distinguish from health checks.
+
 ## 7. Architecture Diagram
 
 ```mermaid

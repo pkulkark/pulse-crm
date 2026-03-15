@@ -5,7 +5,7 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python3 scripts/verify_phase0.py --mode lint"
+        "command": "node -e \"const fs=require('node:fs'); const required=['.editorconfig','.env.example','docker-compose.yml','eslint.config.mjs','nx.json','package.json','ruff.toml']; for (const file of required) { if (!fs.existsSync(file)) { throw new Error('Missing required file: ' + file); } } JSON.parse(fs.readFileSync('package.json','utf8')); JSON.parse(fs.readFileSync('nx.json','utf8')); JSON.parse(fs.readFileSync('project.json','utf8')); const compose=fs.readFileSync('docker-compose.yml','utf8'); for (const marker of ['frontend:','gateway:','identity-service:','crm-relationships-service:','deals-service:','identity-db:','crm-db:','deals-db:','kafka:']) { if (!compose.includes(marker)) { throw new Error('Missing compose service definition: ' + marker); } }\""
       }
     },
     "test": {

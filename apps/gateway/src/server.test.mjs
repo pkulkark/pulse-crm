@@ -4,10 +4,12 @@ import test from 'node:test';
 
 process.env.NODE_ENV = 'test';
 
+const { createAccessToken } = await import('./auth.mjs');
 const { startGatewayServer } = await import('./server.mjs');
 
-const SUBGRAPH_SDL = `
+const CRM_SUBGRAPH_SDL = `
   type RequestContext {
+    companyId: String
     correlationId: ID!
     userId: String
     userRole: String!
@@ -21,6 +23,40 @@ const SUBGRAPH_SDL = `
 
   type Query {
     serviceHealth: ServiceHealth!
+  }
+`;
+
+const IDENTITY_SUBGRAPH_SDL = `
+  enum UserRole {
+    ADMIN
+    MANAGER
+    SALES_REP
+  }
+
+  type User {
+    id: ID!
+    companyId: ID!
+    name: String!
+    email: String!
+    role: UserRole!
+  }
+
+  type Query {
+    me: User
+  }
+
+  type Mutation {
+    login(input: LoginInput!): AuthPayload!
+  }
+
+  input LoginInput {
+    email: String!
+    password: String!
+  }
+
+  type AuthPayload {
+    token: String!
+    user: User!
   }
 `;
 
@@ -55,7 +91,7 @@ async function readJsonBody(request) {
   return rawBody.length === 0 ? {} : JSON.parse(rawBody);
 }
 
-async function createMockSubgraphServer({ failQueries = false } = {}) {
+async function createMockIdentityServer() {
   const requests = [];
   const server = http.createServer(async (request, response) => {
     const body = await readJsonBody(request);
@@ -69,7 +105,79 @@ async function createMockSubgraphServer({ failQueries = false } = {}) {
       writeJson(response, 200, {
         data: {
           _service: {
-            sdl: SUBGRAPH_SDL,
+            sdl: IDENTITY_SUBGRAPH_SDL,
+          },
+        },
+      });
+      return;
+    }
+
+    if ((body.query ?? '').includes('me')) {
+      writeJson(response, 200, {
+        data: {
+          me: request.headers['x-user-id']
+            ? {
+                companyId: request.headers['x-company-id'],
+                email: 'manager@example.com',
+                id: request.headers['x-user-id'],
+                name: 'Sample Manager',
+                role: 'MANAGER',
+              }
+            : null,
+        },
+      });
+      return;
+    }
+
+    writeJson(response, 400, {
+      errors: [
+        {
+          message: 'Unsupported mock identity query.',
+        },
+      ],
+    });
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  const address = server.address();
+
+  return {
+    requests,
+    stop: async () => {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    },
+    url: `http://127.0.0.1:${address.port}/graphql/`,
+  };
+}
+
+async function createMockCrmSubgraphServer({ failQueries = false } = {}) {
+  const requests = [];
+  const server = http.createServer(async (request, response) => {
+    const body = await readJsonBody(request);
+
+    requests.push({
+      body,
+      headers: request.headers,
+    });
+
+    if ((body.query ?? '').includes('_service')) {
+      writeJson(response, 200, {
+        data: {
+          _service: {
+            sdl: CRM_SUBGRAPH_SDL,
           },
         },
       });
@@ -92,6 +200,7 @@ async function createMockSubgraphServer({ failQueries = false } = {}) {
         data: {
           serviceHealth: {
             requestContext: {
+              companyId: request.headers['x-company-id'] ?? null,
               correlationId: request.headers['x-correlation-id'],
               userId: request.headers['x-user-id'] ?? null,
               userRole: request.headers['x-user-role'] ?? 'anonymous',
@@ -139,14 +248,20 @@ async function createMockSubgraphServer({ failQueries = false } = {}) {
 }
 
 async function startTestGateway({ failQueries = false } = {}) {
-  const downstream = await createMockSubgraphServer({ failQueries });
+  const crm = await createMockCrmSubgraphServer({ failQueries });
+  const identity = await createMockIdentityServer();
   const logger = createLogger();
   const gateway = await startGatewayServer({
     gatewayConfig: {
+      authTokenSecret: 'test-secret',
       enabledSubgraphs: [
         {
           name: 'crmRelationships',
-          url: downstream.url,
+          url: crm.url,
+        },
+        {
+          name: 'identity',
+          url: identity.url,
         },
       ],
       gatewayName: 'test-gateway',
@@ -156,7 +271,12 @@ async function startTestGateway({ failQueries = false } = {}) {
         {
           enabled: true,
           name: 'crmRelationships',
-          url: downstream.url,
+          url: crm.url,
+        },
+        {
+          enabled: true,
+          name: 'identity',
+          url: identity.url,
         },
       ],
     },
@@ -164,12 +284,14 @@ async function startTestGateway({ failQueries = false } = {}) {
   });
 
   return {
-    downstream,
+    crm,
     gateway,
+    identity,
     logger,
     stop: async () => {
       await gateway.stop();
-      await downstream.stop();
+      await crm.stop();
+      await identity.stop();
     },
   };
 }
@@ -178,21 +300,32 @@ test('ready endpoint responds with gateway status and enabled subgraphs', async 
   const runtime = await startTestGateway();
   t.after(async () => runtime.stop());
 
-  const response = await fetch(`${runtime.gateway.url}/ready`);
+  const response = await fetch(`${runtime.gateway.url}/health`);
 
   assert.equal(response.status, 200);
 
   const payload = await response.json();
   assert.equal(payload.status, 'ok');
   assert.equal(payload.ready, true);
-  assert.deepEqual(payload.subgraphs, ['crmRelationships']);
+  assert.deepEqual(payload.subgraphs, ['crmRelationships', 'identity']);
 });
 
-test('gateway resolves serviceHealth through the downstream subgraph', async (t) => {
+test('gateway forwards only validated bearer token context downstream', async (t) => {
   const runtime = await startTestGateway();
   t.after(async () => runtime.stop());
 
-  const response = await fetch(`${runtime.gateway.url}/graphql`, {
+  const token = createAccessToken(
+    {
+      companyId: 'company-9',
+      role: 'manager',
+      userId: 'user-42',
+    },
+    {
+      secret: 'test-secret',
+    },
+  );
+
+  const response = await fetch(`${runtime.gateway.url}/`, {
     body: JSON.stringify({
       operationName: 'ServiceHealthCheck',
       query: `
@@ -201,6 +334,7 @@ test('gateway resolves serviceHealth through the downstream subgraph', async (t)
             service
             status
             requestContext {
+              companyId
               correlationId
               userId
               userRole
@@ -210,10 +344,11 @@ test('gateway resolves serviceHealth through the downstream subgraph', async (t)
       `,
     }),
     headers: {
+      authorization: `Bearer ${token}`,
       'content-type': 'application/json',
       'x-correlation-id': 'corr-123',
-      'x-user-id': 'user-42',
-      'x-user-role': 'manager',
+      'x-user-id': 'spoofed-user',
+      'x-user-role': 'spoofed-role',
     },
     method: 'POST',
   });
@@ -223,6 +358,7 @@ test('gateway resolves serviceHealth through the downstream subgraph', async (t)
   const payload = await response.json();
   assert.deepEqual(payload.data.serviceHealth, {
     requestContext: {
+      companyId: 'company-9',
       correlationId: 'corr-123',
       userId: 'user-42',
       userRole: 'manager',
@@ -231,7 +367,7 @@ test('gateway resolves serviceHealth through the downstream subgraph', async (t)
     status: 'ok',
   });
 
-  const runtimeRequest = runtime.downstream.requests.find(
+  const runtimeRequest = runtime.crm.requests.find(
     ({ body }) =>
       typeof body.query === 'string' &&
       body.query.includes('serviceHealth') &&
@@ -239,15 +375,51 @@ test('gateway resolves serviceHealth through the downstream subgraph', async (t)
   );
 
   assert.equal(runtimeRequest.headers['x-correlation-id'], 'corr-123');
+  assert.equal(runtimeRequest.headers['x-company-id'], 'company-9');
   assert.equal(runtimeRequest.headers['x-user-id'], 'user-42');
   assert.equal(runtimeRequest.headers['x-user-role'], 'manager');
+});
+
+test('gateway rejects invalid bearer tokens before reaching subgraphs', async (t) => {
+  const runtime = await startTestGateway();
+  t.after(async () => runtime.stop());
+
+  const response = await fetch(`${runtime.gateway.url}/`, {
+    body: JSON.stringify({
+      query: `
+        query ServiceHealthCheck {
+          serviceHealth {
+            status
+          }
+        }
+      `,
+    }),
+    headers: {
+      authorization: 'Bearer not-a-real-token',
+      'content-type': 'application/json',
+    },
+    method: 'POST',
+  });
+
+  assert.equal(response.status, 401);
+  assert.equal(
+    (await response.json()).errors[0].message,
+    'Invalid or expired authentication token.',
+  );
+
+  const crmQueryRequests = runtime.crm.requests.filter(
+    ({ body }) =>
+      typeof body.query === 'string' &&
+      !body.query.includes('_service'),
+  );
+  assert.equal(crmQueryRequests.length, 0);
 });
 
 test('gateway returns a clear GraphQL error when the downstream query fails', async (t) => {
   const runtime = await startTestGateway({ failQueries: true });
   t.after(async () => runtime.stop());
 
-  const response = await fetch(`${runtime.gateway.url}/graphql`, {
+  const response = await fetch(`${runtime.gateway.url}/`, {
     body: JSON.stringify({
       query: `
         query BrokenServiceHealth {
@@ -264,11 +436,7 @@ test('gateway returns a clear GraphQL error when the downstream query fails', as
   });
 
   assert.equal(response.status, 200);
-
   const payload = await response.json();
   assert.equal(payload.data, null);
-  assert.match(
-    payload.errors[0].message,
-    /503: Service Unavailable|crmRelationships|Subgraph unavailable/i,
-  );
+  assert.match(payload.errors[0].message, /503: Service Unavailable/);
 });

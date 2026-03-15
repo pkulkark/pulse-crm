@@ -4,6 +4,7 @@ import { URL } from 'node:url';
 import { ApolloGateway, IntrospectAndCompose, RemoteGraphQLDataSource } from '@apollo/gateway';
 import { ApolloServer, HeaderMap } from '@apollo/server';
 
+import { AuthTokenError } from './auth.mjs';
 import { getGatewayConfig } from './config.mjs';
 import { CONTEXT_HEADERS, createRequestContext } from './context.mjs';
 import { logJson, serializeError } from './logger.mjs';
@@ -77,7 +78,12 @@ class ContextPropagatingDataSource extends RemoteGraphQLDataSource {
       request.http.headers.set(CONTEXT_HEADERS.userId, user.id);
     }
 
+    if (user.companyId) {
+      request.http.headers.set(CONTEXT_HEADERS.companyId, user.companyId);
+    }
+
     logJson(this.logger, 'info', 'subgraph_request', {
+      companyId: user.companyId,
       correlationId: requestDetails.correlationId,
       subgraph: this.serviceName,
       userId: user.id,
@@ -185,9 +191,12 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
   return async function handleRequest(request, response) {
     const requestUrl = new URL(request.url ?? '/', 'http://localhost');
 
-    if (requestUrl.pathname === '/ready') {
+    if (
+      requestUrl.pathname === '/health' ||
+      requestUrl.pathname === '/health/'
+    ) {
       return jsonResponse(response, 200, {
-        graphql: '/graphql',
+        graphql: '/',
         ready: true,
         service: gatewayConfig.gatewayName,
         status: 'ok',
@@ -195,19 +204,7 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
       });
     }
 
-    if (requestUrl.pathname === '/') {
-      return jsonResponse(response, 200, {
-        graphql: '/graphql',
-        ready: '/ready',
-        message:
-          'Sample GraphQL gateway. Frontend and clients should query only /graphql.',
-      });
-    }
-
-    if (
-      requestUrl.pathname !== '/graphql' &&
-      requestUrl.pathname !== '/graphql/'
-    ) {
+    if (requestUrl.pathname !== '/') {
       return jsonResponse(response, 404, {
         error: 'Not found',
       });
@@ -226,11 +223,12 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
       return;
     }
 
-    const contextValue = {
-      requestContext: createRequestContext(request),
-    };
-
     try {
+      const contextValue = {
+        requestContext: createRequestContext(request, {
+          secret: gatewayConfig.authTokenSecret,
+        }),
+      };
       const body = await readJsonBody(request);
       const graphQLResponse = await apolloServer.executeHTTPGraphQLRequest({
         context: async () => contextValue,
@@ -255,8 +253,20 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
         return;
       }
 
+      if (error instanceof AuthTokenError) {
+        jsonResponse(response, 401, {
+          errors: [
+            {
+              message: error.message,
+            },
+          ],
+        });
+        return;
+      }
+
       logJson(logger, 'error', 'gateway_http_error', {
-        correlationId: contextValue.requestContext.request.correlationId,
+        correlationId:
+          normalizeHeaderCorrelationId(request.headers) ?? 'unknown',
         error: serializeError(error),
       });
 
@@ -269,6 +279,18 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
       });
     }
   };
+}
+
+function normalizeHeaderCorrelationId(headers) {
+  const correlationId = headers[CONTEXT_HEADERS.correlationId];
+
+  if (Array.isArray(correlationId)) {
+    return correlationId[0] ?? null;
+  }
+
+  return typeof correlationId === 'string' && correlationId.trim().length > 0
+    ? correlationId.trim()
+    : null;
 }
 
 export async function createServer(options = {}) {
