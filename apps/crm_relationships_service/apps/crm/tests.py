@@ -13,6 +13,7 @@ from .models import Activity, Company, Contact, Task, TaskPriority, TaskStatus
 DEFAULT_COMPANY_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 ADMIN_USER_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 MANAGER_USER_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+SALES_REP_USER_ID = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
 
 
 class CrmGraphQLTests(TestCase):
@@ -42,6 +43,13 @@ class CrmGraphQLTests(TestCase):
             "HTTP_X_COMPANY_ID": str(company_id),
             "HTTP_X_USER_ID": str(MANAGER_USER_ID),
             "HTTP_X_USER_ROLE": "manager",
+        }
+
+    def sales_rep_headers(self, company_id):
+        return {
+            "HTTP_X_COMPANY_ID": str(company_id),
+            "HTTP_X_USER_ID": str(SALES_REP_USER_ID),
+            "HTTP_X_USER_ROLE": "sales_rep",
         }
 
     def test_admin_can_create_parent_and_child_companies(self):
@@ -86,7 +94,7 @@ class CrmGraphQLTests(TestCase):
             parent_company["id"],
         )
 
-    def test_seeded_default_company_is_visible_to_manager_scope(self):
+    def test_seeded_default_company_is_visible_to_authenticated_manager(self):
         response = self.graphql(
             """
                 query Companies {
@@ -239,6 +247,67 @@ class CrmGraphQLTests(TestCase):
             "",
         )
 
+    def test_admin_can_update_company_and_contact_globally(self):
+        company = Company.objects.create(name="Global Co")
+        contact = Contact.objects.create(
+            company=company,
+            name="Global Contact",
+            email="global@company.test",
+        )
+
+        update_company_response = self.graphql(
+            """
+                mutation UpdateCompany($input: UpdateCompanyInput!) {
+                    updateCompany(input: $input) {
+                        id
+                        name
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "companyId": str(company.id),
+                    "name": "Global Co Updated",
+                }
+            },
+            headers=self.admin_headers(),
+        )
+        update_contact_response = self.graphql(
+            """
+                mutation UpdateContact($input: UpdateContactInput!) {
+                    updateContact(input: $input) {
+                        id
+                        name
+                        jobTitle
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "contactId": str(contact.id),
+                    "name": "Global Contact Updated",
+                    "email": "global@company.test",
+                    "jobTitle": "Director",
+                }
+            },
+            headers=self.admin_headers(),
+        )
+
+        self.assertEqual(update_company_response.status_code, 200)
+        self.assertEqual(
+            update_company_response.json()["data"]["updateCompany"]["name"],
+            "Global Co Updated",
+        )
+        self.assertEqual(update_contact_response.status_code, 200)
+        self.assertEqual(
+            update_contact_response.json()["data"]["updateContact"],
+            {
+                "id": str(contact.id),
+                "name": "Global Contact Updated",
+                "jobTitle": "Director",
+            },
+        )
+
     def test_non_admin_users_cannot_modify_companies_or_contacts(self):
         company = Company.objects.create(name="Fabrikam")
         contact = Contact.objects.create(
@@ -246,46 +315,72 @@ class CrmGraphQLTests(TestCase):
             name="Jordan Miles",
             email="jordan@fabrikam.test",
         )
-        headers = self.manager_headers(company.id)
-
-        create_company_response = self.graphql(
-            """
-                mutation CreateCompany($input: CreateCompanyInput!) {
-                    createCompany(input: $input) {
-                        id
+        for headers in (
+            self.manager_headers(company.id),
+            self.sales_rep_headers(company.id),
+        ):
+            create_company_response = self.graphql(
+                """
+                    mutation CreateCompany($input: CreateCompanyInput!) {
+                        createCompany(input: $input) {
+                            id
+                        }
                     }
-                }
-            """,
-            variables={"input": {"name": "Blocked Company"}},
-            headers=headers,
-        )
-        update_contact_response = self.graphql(
-            """
-                mutation UpdateContact($input: UpdateContactInput!) {
-                    updateContact(input: $input) {
-                        id
+                """,
+                variables={"input": {"name": "Blocked Company"}},
+                headers=headers,
+            )
+            update_contact_response = self.graphql(
+                """
+                    mutation UpdateContact($input: UpdateContactInput!) {
+                        updateContact(input: $input) {
+                            id
+                        }
                     }
-                }
-            """,
-            variables={
-                "input": {
-                    "contactId": str(contact.id),
-                    "name": contact.name,
-                    "email": contact.email,
-                    "jobTitle": "Director",
-                }
-            },
-            headers=headers,
-        )
+                """,
+                variables={
+                    "input": {
+                        "contactId": str(contact.id),
+                        "name": contact.name,
+                        "email": contact.email,
+                        "jobTitle": "Director",
+                    }
+                },
+                headers=headers,
+            )
 
+            self.assertEqual(
+                create_company_response.json()["errors"][0]["extensions"]["code"],
+                "FORBIDDEN",
+            )
+            self.assertEqual(
+                update_contact_response.json()["errors"][0]["extensions"]["code"],
+                "FORBIDDEN",
+            )
+
+    def test_admin_only_mutation_denials_are_logged(self):
+        company = Company.objects.create(name="Fabrikam")
+
+        with self.assertLogs("apps.crm.graphql", level="INFO") as captured_logs:
+            response = self.graphql(
+                """
+                    mutation CreateCompany($input: CreateCompanyInput!) {
+                        createCompany(input: $input) {
+                            id
+                        }
+                    }
+                """,
+                variables={"input": {"name": "Blocked Company"}},
+                headers=self.manager_headers(company.id),
+            )
+
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            create_company_response.json()["errors"][0]["extensions"]["code"],
+            response.json()["errors"][0]["extensions"]["code"],
             "FORBIDDEN",
         )
-        self.assertEqual(
-            update_contact_response.json()["errors"][0]["extensions"]["code"],
-            "FORBIDDEN",
-        )
+        self.assertIn("authorization_denied", "\n".join(captured_logs.output))
+        self.assertIn("admin_required", "\n".join(captured_logs.output))
 
     def test_company_reads_require_authentication(self):
         response = self.graphql(
@@ -304,51 +399,70 @@ class CrmGraphQLTests(TestCase):
             "UNAUTHENTICATED",
         )
 
-    def test_non_admin_reads_are_limited_to_current_company_scope(self):
-        visible_company = Company.objects.create(name="Visible Co")
-        hidden_company = Company.objects.create(name="Hidden Co")
-        hidden_contact = Contact.objects.create(
-            company=hidden_company,
-            name="Hidden Contact",
-            email="hidden@company.test",
+    def test_authenticated_reads_are_global_for_non_admin_roles(self):
+        first_company = Company.objects.create(name="First Co")
+        second_company = Company.objects.create(name="Second Co")
+        second_contact = Contact.objects.create(
+            company=second_company,
+            name="Second Contact",
+            email="second@company.test",
         )
 
-        response = self.graphql(
-            """
-                query ScopedReads($companyId: ID!, $contactId: ID!) {
-                    companies {
-                        id
-                        name
-                    }
-                    company(id: $companyId) {
-                        id
-                    }
-                    contact(id: $contactId) {
-                        id
-                    }
+        query = """
+            query GlobalReads($companyId: ID!, $contactId: ID!) {
+                companies {
+                    id
+                    name
                 }
-            """,
-            variables={
-                "companyId": str(hidden_company.id),
-                "contactId": str(hidden_contact.id),
-            },
-            headers=self.manager_headers(visible_company.id),
-        )
+                company(id: $companyId) {
+                    id
+                }
+                contact(id: $contactId) {
+                    id
+                }
+            }
+        """
+        variables = {
+            "companyId": str(second_company.id),
+            "contactId": str(second_contact.id),
+        }
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()["data"],
-            {
-                "companies": [
-                    {
-                        "id": str(visible_company.id),
-                        "name": "Visible Co",
-                    }
-                ],
-                "company": None,
-                "contact": None,
-            },
-        )
+        for headers in (
+            self.manager_headers(uuid.uuid4()),
+            self.sales_rep_headers(uuid.uuid4()),
+        ):
+            response = self.graphql(
+                query,
+                variables=variables,
+                headers=headers,
+            )
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.json()["data"],
+                {
+                    "companies": [
+                        {
+                            "id": str(first_company.id),
+                            "name": "First Co",
+                        },
+                        {
+                            "id": str(DEFAULT_COMPANY_ID),
+                            "name": "Sample Industries",
+                        },
+                        {
+                            "id": str(second_company.id),
+                            "name": "Second Co",
+                        },
+                    ],
+                    "company": {
+                        "id": str(second_company.id),
+                    },
+                    "contact": {
+                        "id": str(second_contact.id),
+                    },
+                },
+            )
 
     def test_company_hierarchy_rejects_cycles(self):
         parent_company = Company.objects.create(name="Parent")
@@ -415,7 +529,7 @@ class CrmGraphQLTests(TestCase):
         )
 
     @patch("apps.crm.graphql.fetch_deal_reference")
-    def test_create_task_supports_company_contact_and_deal_references(
+    def test_manager_can_create_and_assign_task_with_company_contact_and_deal_references(
         self,
         mock_fetch_deal_reference,
     ):
@@ -464,7 +578,7 @@ class CrmGraphQLTests(TestCase):
                     "companyId": str(company.id),
                     "contactId": str(contact.id),
                     "dealId": deal_id,
-                    "userId": str(MANAGER_USER_ID),
+                    "userId": str(SALES_REP_USER_ID),
                     "dueDate": "2026-03-20",
                     "priority": "HIGH",
                 }
@@ -478,7 +592,7 @@ class CrmGraphQLTests(TestCase):
         self.assertEqual(payload["companyId"], str(company.id))
         self.assertEqual(payload["contactId"], str(contact.id))
         self.assertEqual(payload["dealId"], deal_id)
-        self.assertEqual(payload["userId"], str(MANAGER_USER_ID))
+        self.assertEqual(payload["userId"], str(SALES_REP_USER_ID))
         self.assertEqual(payload["status"], TaskStatus.OPEN)
         self.assertEqual(payload["dueDate"], "2026-03-20")
         self.assertEqual(payload["priority"], TaskPriority.HIGH)
@@ -528,7 +642,7 @@ class CrmGraphQLTests(TestCase):
             due_date=date(2026, 3, 20),
             priority=TaskPriority.LOW,
         )
-        Task.objects.create(
+        hidden_task = Task.objects.create(
             title="Hidden company task",
             company_id=hidden_company.id,
             user_id=MANAGER_USER_ID,
@@ -568,13 +682,27 @@ class CrmGraphQLTests(TestCase):
                     "dueBefore": "2026-03-20",
                 }
             },
-            headers=self.manager_headers(visible_company.id),
+            headers=self.manager_headers(uuid.uuid4()),
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json()["data"]["tasks"],
             [
+                {
+                    "id": str(hidden_task.id),
+                    "title": "Hidden company task",
+                    "status": TaskStatus.OPEN,
+                    "userId": str(MANAGER_USER_ID),
+                    "dueDate": "2026-03-18",
+                    "priority": TaskPriority.HIGH,
+                    "company": {
+                        "id": str(hidden_company.id),
+                        "name": "Hidden Co",
+                    },
+                    "contact": None,
+                    "deal": None,
+                },
                 {
                     "id": str(matching_task.id),
                     "title": "Call customer",
@@ -597,7 +725,7 @@ class CrmGraphQLTests(TestCase):
             ],
         )
 
-    def test_update_task_can_change_status_from_open_to_completed(self):
+    def test_manager_can_update_assigned_task_status(self):
         company = Company.objects.create(name="Adventure Works")
         task = Task.objects.create(
             title="Confirm meeting",
@@ -622,7 +750,7 @@ class CrmGraphQLTests(TestCase):
                     "status": "COMPLETED",
                 }
             },
-            headers=self.manager_headers(company.id),
+            headers=self.manager_headers(uuid.uuid4()),
         )
 
         self.assertEqual(response.status_code, 200)
@@ -632,6 +760,269 @@ class CrmGraphQLTests(TestCase):
         )
         task.refresh_from_db()
         self.assertEqual(task.status, TaskStatus.COMPLETED)
+
+    def test_sales_rep_can_update_assigned_task_status(self):
+        company = Company.objects.create(name="Assigned Co")
+        task = Task.objects.create(
+            title="Call customer",
+            company_id=company.id,
+            user_id=SALES_REP_USER_ID,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+
+        response = self.graphql(
+            """
+                mutation UpdateTask($input: UpdateTaskInput!) {
+                    updateTask(input: $input) {
+                        id
+                        status
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "taskId": str(task.id),
+                    "status": "COMPLETED",
+                }
+            },
+            headers=self.sales_rep_headers(uuid.uuid4()),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["data"]["updateTask"]["status"],
+            TaskStatus.COMPLETED,
+        )
+        task.refresh_from_db()
+        self.assertEqual(task.status, TaskStatus.COMPLETED)
+
+    def test_sales_rep_cannot_create_task(self):
+        company = Company.objects.create(name="Target Co")
+        response = self.graphql(
+            """
+                mutation CreateTask($input: CreateTaskInput!) {
+                    createTask(input: $input) {
+                        id
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "title": "Blocked follow-up",
+                    "companyId": str(company.id),
+                    "userId": str(SALES_REP_USER_ID),
+                    "priority": "HIGH",
+                }
+            },
+            headers=self.sales_rep_headers(uuid.uuid4()),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["errors"][0]["message"],
+            "Only admins and managers can create tasks.",
+        )
+        self.assertEqual(
+            response.json()["errors"][0]["extensions"]["code"],
+            "FORBIDDEN",
+        )
+
+    def test_sales_rep_cannot_update_unassigned_task(self):
+        company = Company.objects.create(name="Unassigned Co")
+        task = Task.objects.create(
+            title="Call customer",
+            company_id=company.id,
+            user_id=MANAGER_USER_ID,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+
+        response = self.graphql(
+            """
+                mutation UpdateTask($input: UpdateTaskInput!) {
+                    updateTask(input: $input) {
+                        id
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "taskId": str(task.id),
+                    "status": "COMPLETED",
+                }
+            },
+            headers=self.sales_rep_headers(uuid.uuid4()),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["errors"][0]["message"],
+            "You can only update the status of tasks assigned to you.",
+        )
+        self.assertEqual(
+            response.json()["errors"][0]["extensions"]["code"],
+            "FORBIDDEN",
+        )
+
+    def test_manager_cannot_update_unassigned_task(self):
+        company = Company.objects.create(name="Manager Unassigned Co")
+        task = Task.objects.create(
+            title="Call customer",
+            company_id=company.id,
+            user_id=SALES_REP_USER_ID,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+
+        response = self.graphql(
+            """
+                mutation UpdateTask($input: UpdateTaskInput!) {
+                    updateTask(input: $input) {
+                        id
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "taskId": str(task.id),
+                    "status": "COMPLETED",
+                }
+            },
+            headers=self.manager_headers(uuid.uuid4()),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["errors"][0]["message"],
+            "You can only update the status of tasks assigned to you.",
+        )
+        self.assertEqual(
+            response.json()["errors"][0]["extensions"]["code"],
+            "FORBIDDEN",
+        )
+
+    def test_sales_rep_cannot_edit_task_fields_other_than_status(self):
+        company = Company.objects.create(name="Field Edit Co")
+        task = Task.objects.create(
+            title="Initial title",
+            company_id=company.id,
+            user_id=SALES_REP_USER_ID,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+
+        response = self.graphql(
+            """
+                mutation UpdateTask($input: UpdateTaskInput!) {
+                    updateTask(input: $input) {
+                        id
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "taskId": str(task.id),
+                    "title": "Updated title",
+                    "status": "COMPLETED",
+                }
+            },
+            headers=self.sales_rep_headers(uuid.uuid4()),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["errors"][0]["message"],
+            "Only admins can edit task details other than status.",
+        )
+        self.assertEqual(
+            response.json()["errors"][0]["extensions"]["code"],
+            "FORBIDDEN",
+        )
+        task.refresh_from_db()
+        self.assertEqual(task.title, "Initial title")
+        self.assertEqual(task.status, TaskStatus.OPEN)
+
+    @patch("apps.crm.graphql.fetch_deal_reference")
+    def test_sales_rep_can_create_activity_for_any_company(
+        self,
+        mock_fetch_deal_reference,
+    ):
+        company = Company.objects.create(name="Target Co")
+        contact = Contact.objects.create(
+            company=company,
+            name="Target Contact",
+            email="target@company.test",
+        )
+        deal_id = str(uuid.uuid4())
+        mock_fetch_deal_reference.return_value = {
+            "id": deal_id,
+            "companyId": str(company.id),
+        }
+        create_activity_response = self.graphql(
+            """
+                mutation CreateActivity($input: CreateActivityInput!) {
+                    createActivity(input: $input) {
+                        id
+                        companyId
+                    }
+                }
+            """,
+            variables={
+                "input": {
+                    "companyId": str(company.id),
+                    "contactId": str(contact.id),
+                    "dealId": deal_id,
+                    "userId": str(SALES_REP_USER_ID),
+                    "type": "CALL",
+                    "details": "Global call",
+                    "occurredAt": "2026-03-15T16:00:00Z",
+                }
+            },
+            headers=self.sales_rep_headers(uuid.uuid4()),
+        )
+
+        self.assertEqual(create_activity_response.status_code, 200)
+        self.assertEqual(
+            create_activity_response.json()["data"]["createActivity"]["companyId"],
+            str(company.id),
+        )
+
+    def test_task_authorization_failures_are_logged(self):
+        company = Company.objects.create(name="Logged Co")
+        task = Task.objects.create(
+            title="Logged task",
+            company_id=company.id,
+            user_id=MANAGER_USER_ID,
+            status=TaskStatus.OPEN,
+            priority=TaskPriority.MEDIUM,
+        )
+
+        with self.assertLogs("apps.crm.graphql", level="INFO") as captured_logs:
+            response = self.graphql(
+                """
+                    mutation UpdateTask($input: UpdateTaskInput!) {
+                        updateTask(input: $input) {
+                            id
+                        }
+                    }
+                """,
+                variables={
+                    "input": {
+                        "taskId": str(task.id),
+                        "status": "COMPLETED",
+                    }
+                },
+                headers=self.sales_rep_headers(uuid.uuid4()),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["errors"][0]["extensions"]["code"],
+            "FORBIDDEN",
+        )
+        self.assertIn("authorization_denied", "\n".join(captured_logs.output))
+        self.assertIn("task_assignment_required", "\n".join(captured_logs.output))
 
     @patch("apps.crm.graphql.fetch_deal_reference")
     def test_create_activity_and_query_history(
@@ -683,7 +1074,7 @@ class CrmGraphQLTests(TestCase):
                     "dealId": deal_id,
                     "userId": str(MANAGER_USER_ID),
                     "type": "CALL",
-                    "details": "Discussed renewal scope",
+                    "details": "Discussed renewal timeline",
                     "occurredAt": "2026-03-15T16:00:00Z",
                 }
             },
@@ -715,7 +1106,7 @@ class CrmGraphQLTests(TestCase):
                     companyActivities: activities(companyId: $companyId) {
                         id
                     }
-                    scopedActivities: activities(
+                    filteredActivities: activities(
                         companyId: $companyId
                         contactId: $contactId
                         dealId: $dealId
@@ -737,12 +1128,12 @@ class CrmGraphQLTests(TestCase):
         self.assertEqual(query_response.status_code, 200)
         self.assertEqual(len(query_response.json()["data"]["companyActivities"]), 2)
         self.assertEqual(
-            query_response.json()["data"]["scopedActivities"],
+            query_response.json()["data"]["filteredActivities"],
             [
                 {
                     "id": payload["id"],
                     "type": "CALL",
-                    "details": "Discussed renewal scope",
+                    "details": "Discussed renewal timeline",
                 }
             ],
         )

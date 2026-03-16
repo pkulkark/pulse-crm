@@ -18,9 +18,9 @@ The initial UI assumes three internal roles:
 
 High-level permission expectations:
 
-- `admin` can create and edit companies and contacts
-- `manager` can view company data across permitted company scope and manage deals, tasks, and activities
-- `sales_rep` can work with deals, activities, and tasks in their allowed company scope
+- `admin` is a global internal operator and can create and edit companies and contacts across all customer-company records
+- `manager` can view and manage deals, create and assign tasks, update assigned task status, and log activities across CRM data
+- `sales_rep` can create and update deals, update assigned task status, and log activities across CRM data
 
 For the initial implementation, company and contact creation and editing are restricted to `admin`.
 
@@ -244,7 +244,7 @@ Examples:
 
 Purpose:
 
-- show follow-up work items for the current user or current company scope
+- show follow-up work items available across CRM data, with filtering by assignee when needed
 
 Visible data:
 

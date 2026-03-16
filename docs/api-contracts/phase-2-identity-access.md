@@ -43,7 +43,7 @@ enum UserRole {
 
 type User {
   id: ID!
-  companyId: ID!
+  companyId: ID
   name: String!
   email: String!
   role: UserRole!
@@ -138,12 +138,13 @@ mutation {
 - the gateway should call `login` and `me` through this service
 - the gateway should validate or trust the token according to the chosen auth approach and pass trusted user context downstream
 - downstream services should rely on trusted context from the gateway rather than frontend-provided role claims
+- `companyId`, when present, represents internal organizational context supplied by identity and is not a customer-data authorization boundary in this phase
 
 ## Validation Rules
 
 - `email` must be a valid email format
 - `password` is required for `login`
-- `companyId` on `User` is required because Phase 2 assumes one company per internal user
+- `companyId` on `User` is optional and may be omitted when the identity system does not use it
 - `role` must be one of the supported `UserRole` enum values
 
 ## Error Handling Expectations
@@ -156,4 +157,3 @@ mutation {
 
 - if the implementation chooses a session-based mechanism rather than a token returned from GraphQL, `me` remains mandatory and `login` may be adapted accordingly
 - if `login` is adapted, the phase implementation must document the final chosen shape and keep the frontend contract explicit
-

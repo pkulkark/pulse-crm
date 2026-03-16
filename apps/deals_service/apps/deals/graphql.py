@@ -109,16 +109,9 @@ def require_authenticated_user(info):
 
 
 def get_visible_deals(info) -> QuerySet[Deal]:
-    user = require_authenticated_user(info)
+    require_authenticated_user(info)
     queryset = Deal.objects.all()
-
-    if user["role"] == "admin":
-        return queryset
-
-    if not user["companyId"]:
-        return queryset.none()
-
-    return queryset.filter(company_id=user["companyId"])
+    return queryset
 
 
 def normalize_optional_text(value):
@@ -154,21 +147,6 @@ def raise_validation_error(error):
         " ".join(messages),
         extensions={"code": "BAD_USER_INPUT"},
     ) from error
-
-
-def require_company_scope(info, company_id):
-    user = require_authenticated_user(info)
-
-    if user["role"] == "admin":
-        return user
-
-    if not user["companyId"] or str(company_id) != user["companyId"]:
-        raise GraphQLError(
-            "You do not have access to this company.",
-            extensions={"code": "FORBIDDEN"},
-        )
-
-    return user
 
 
 def build_crm_graphql_request_context(info):
@@ -335,7 +313,7 @@ def resolve_create_deal(_, info, input):
     primary_contact_id = normalize_optional_text(input.get("primaryContactId"))
     status = input["status"]
 
-    require_company_scope(info, company_id)
+    require_authenticated_user(info)
     validate_references(info, company_id, primary_contact_id)
 
     instance = Deal(

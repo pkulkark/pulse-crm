@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import date, datetime, timezone
 from urllib import error, request
 
@@ -199,6 +200,10 @@ activity_type = EnumType(
     },
 )
 
+logger = logging.getLogger(__name__)
+SUPPORTED_USER_ROLES = {"admin", "manager", "sales_rep"}
+TASK_CREATOR_ROLES = {"admin", "manager"}
+
 
 def get_request_user(info):
     return info.context["request_context"]["user"]
@@ -216,10 +221,33 @@ def require_authenticated_user(info):
     return user
 
 
+def log_authorization_failure(info, *, operation, reason):
+    request_context = info.context["request_context"]
+    user = request_context["user"]
+    logger.info(
+        json.dumps(
+            {
+                "event": "authorization_denied",
+                "correlationId": request_context["correlationId"],
+                "operation": operation,
+                "reason": reason,
+                "userCompanyId": user["companyId"],
+                "userId": user["id"],
+                "userRole": user["role"],
+            }
+        )
+    )
+
+
 def require_admin_user(info):
     user = require_authenticated_user(info)
 
     if user["role"] != "admin":
+        log_authorization_failure(
+            info,
+            operation=info.field_name,
+            reason="admin_required",
+        )
         raise GraphQLError(
             "Only admins can modify companies and contacts.",
             extensions={"code": "FORBIDDEN"},
@@ -228,15 +256,70 @@ def require_admin_user(info):
     return user
 
 
-def require_company_scope(info, company_id):
+def require_supported_user(info):
     user = require_authenticated_user(info)
+
+    if user["role"] not in SUPPORTED_USER_ROLES:
+        log_authorization_failure(
+            info,
+            operation=info.field_name,
+            reason="unsupported_role",
+        )
+        raise GraphQLError(
+            "You do not have access to this operation.",
+            extensions={"code": "FORBIDDEN"},
+        )
+
+    return user
+
+
+def require_task_creator(info):
+    user = require_supported_user(info)
+
+    if user["role"] not in TASK_CREATOR_ROLES:
+        log_authorization_failure(
+            info,
+            operation=info.field_name,
+            reason="task_create_requires_manager",
+        )
+        raise GraphQLError(
+            "Only admins and managers can create tasks.",
+            extensions={"code": "FORBIDDEN"},
+        )
+
+    return user
+
+
+def require_task_updater(info, instance, input_data):
+    user = require_supported_user(info)
 
     if user["role"] == "admin":
         return user
 
-    if not user["companyId"] or str(company_id) != user["companyId"]:
+    disallowed_fields = [
+        field_name
+        for field_name in ("title", "dueDate", "priority")
+        if field_name in input_data
+    ]
+    if disallowed_fields:
+        log_authorization_failure(
+            info,
+            operation=info.field_name,
+            reason="task_status_only_for_non_admin",
+        )
         raise GraphQLError(
-            "You do not have access to this company.",
+            "Only admins can edit task details other than status.",
+            extensions={"code": "FORBIDDEN"},
+        )
+
+    if str(instance.user_id) != user["id"]:
+        log_authorization_failure(
+            info,
+            operation=info.field_name,
+            reason="task_assignment_required",
+        )
+        raise GraphQLError(
+            "You can only update the status of tasks assigned to you.",
             extensions={"code": "FORBIDDEN"},
         )
 
@@ -244,16 +327,9 @@ def require_company_scope(info, company_id):
 
 
 def get_visible_companies(info) -> QuerySet[Company]:
-    user = require_authenticated_user(info)
+    require_supported_user(info)
     queryset = Company.objects.select_related("parent_company").all()
-
-    if user["role"] == "admin":
-        return queryset
-
-    if not user["companyId"]:
-        return queryset.none()
-
-    return queryset.filter(id=user["companyId"])
+    return queryset
 
 
 def get_visible_tasks(info) -> QuerySet[Task]:
@@ -474,7 +550,7 @@ def fetch_deal_reference(info, deal_id):
 
 def validate_relationship_ids(info, *, company_id, contact_id=None, deal_id=None):
     company_instance = get_company_or_error(company_id, "Company not found.")
-    require_company_scope(info, company_instance.id)
+    require_supported_user(info)
 
     normalized_contact_id = normalize_optional_id(contact_id)
     if normalized_contact_id is not None:
@@ -668,7 +744,7 @@ def resolve_update_contact(_, info, input):
 
 @mutation.field("createTask")
 def resolve_create_task(_, info, input):
-    require_authenticated_user(info)
+    require_task_creator(info)
 
     title = normalize_required_text(input["title"], "Title")
     company_id = normalize_required_id(input["companyId"], "Company")
@@ -699,12 +775,11 @@ def resolve_create_task(_, info, input):
 
 @mutation.field("updateTask")
 def resolve_update_task(_, info, input):
-    require_authenticated_user(info)
-
     instance = get_visible_task_or_error(
         info,
         normalize_required_id(input["taskId"], "Task"),
     )
+    require_task_updater(info, instance, input)
 
     has_changes = False
 
@@ -733,7 +808,7 @@ def resolve_update_task(_, info, input):
 
 @mutation.field("createActivity")
 def resolve_create_activity(_, info, input):
-    require_authenticated_user(info)
+    require_supported_user(info)
 
     company_id = normalize_required_id(input["companyId"], "Company")
     contact_id = normalize_optional_id(input.get("contactId"))

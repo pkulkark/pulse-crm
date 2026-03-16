@@ -413,10 +413,13 @@ Access control is enforced server-side.
 
 High-level assumptions:
 
-- each internal `User` belongs to exactly one company
+- all `User` records represent internal host-company users of the CRM
+- customer companies are CRM data records, not application users
 - each user has one role
-- child-company data is isolated from sibling child companies
-- parent-company users may have visibility across their child companies
+- `admin` is global and can access all customer-company data
+- `manager` and `sales_rep` are internal roles without per-customer-company scoping in the initial implementation
+- company hierarchy remains part of the CRM data model and does not define user tenancy
+- authorization is enforced by allowed actions rather than per-user customer-record assignment
 
 Example role ideas:
 
@@ -426,8 +429,9 @@ Example role ideas:
 
 Example access behavior:
 
-- a child-company sales rep sees only that child company's records
-- a parent-company manager can view records across children
+- an `admin` can view all customer-company records
+- a `manager` can create deals, create tasks, assign work, update assigned task status, and log activities across CRM data
+- a `sales_rep` can create deals, update deals, update assigned task status, and log activities across CRM data
 - unauthorized records are filtered or rejected by backend services
 
 ## 14. Operational Standards

@@ -87,7 +87,7 @@ Purpose:
 
 Behavior:
 
-- returns only deals within the current user’s authorized company scope
+- returns all deals for an authenticated user
 
 ### `deal`
 
@@ -97,7 +97,7 @@ Purpose:
 
 Behavior:
 
-- returns `null` if not found or not visible to the current user
+- returns `null` if not found
 
 ### `createDeal`
 
@@ -191,8 +191,8 @@ mutation {
 ## Authorization Rules
 
 - `deals` and `deal` require an authenticated user
-- visible deals are filtered by the current user’s company scope
-- `createDeal` and `updateDealStatus` require an authenticated user within the allowed company scope
+- authenticated users can read any deal
+- authenticated users can create deals and update deal status
 
 ## Error Handling Expectations
 
@@ -204,4 +204,3 @@ mutation {
 
 - if later phases add pagination or deal filtering, they can extend `deals` without breaking this minimum contract
 - if the implementation chooses to default newly created deals to `NEW`, the contract may be simplified by making `status` optional in `CreateDealInput`, but any such change should be documented here in the same phase
-

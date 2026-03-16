@@ -60,6 +60,13 @@ class DealGraphQLTests(TestCase):
             "HTTP_X_USER_ROLE": "manager",
         }
 
+    def sales_rep_headers(self, company_id):
+        return {
+            "HTTP_X_COMPANY_ID": str(company_id),
+            "HTTP_X_USER_ID": str(uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")),
+            "HTTP_X_USER_ROLE": "sales_rep",
+        }
+
     @patch("apps.deals.graphql.fetch_reference_records")
     def test_create_deal_supports_optional_primary_contact(self, mock_fetch_reference_records):
         company_id = uuid.uuid4()
@@ -191,94 +198,116 @@ class DealGraphQLTests(TestCase):
         )
 
     @patch("apps.deals.graphql.fetch_reference_records")
-    def test_company_scope_is_enforced_for_create_deal(self, mock_fetch_reference_records):
+    def test_non_admin_roles_can_create_deals_for_any_company(
+        self,
+        mock_fetch_reference_records,
+    ):
         company_id = uuid.uuid4()
+        mock_fetch_reference_records.return_value = {"company": {"id": str(company_id)}}
 
-        response = self.graphql(
-            """
-                mutation CreateDeal($input: CreateDealInput!) {
-                    createDeal(input: $input) {
-                        id
+        for headers in (
+            self.manager_headers(uuid.uuid4()),
+            self.sales_rep_headers(uuid.uuid4()),
+        ):
+            response = self.graphql(
+                """
+                    mutation CreateDeal($input: CreateDealInput!) {
+                        createDeal(input: $input) {
+                            id
+                            companyId
+                        }
                     }
-                }
-            """,
-            variables={
-                "input": {
-                    "companyId": str(company_id),
-                    "status": "NEW",
-                }
-            },
-            headers=self.manager_headers(uuid.uuid4()),
-        )
+                """,
+                variables={
+                    "input": {
+                        "companyId": str(company_id),
+                        "status": "NEW",
+                    }
+                },
+                headers=headers,
+            )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()["errors"][0]["extensions"]["code"],
-            "FORBIDDEN",
-        )
-        mock_fetch_reference_records.assert_not_called()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.json()["data"]["createDeal"]["companyId"],
+                str(company_id),
+            )
 
-    def test_reads_are_filtered_by_company_scope_and_include_federated_references(self):
-        visible_company_id = uuid.uuid4()
-        hidden_company_id = uuid.uuid4()
+    def test_authenticated_reads_are_global_and_include_federated_references(self):
+        first_company_id = uuid.uuid4()
+        second_company_id = uuid.uuid4()
         contact_id = uuid.uuid4()
-        visible_deal = Deal.objects.create(
-            company_id=visible_company_id,
+        first_deal = Deal.objects.create(
+            company_id=first_company_id,
             primary_contact_id=contact_id,
             status=DealStatus.NEW,
         )
-        Deal.objects.create(
-            company_id=hidden_company_id,
+        second_deal = Deal.objects.create(
+            company_id=second_company_id,
             status=DealStatus.QUALIFIED,
         )
 
-        response = self.graphql(
-            """
-                query Deals($visibleId: ID!, $hiddenId: ID!) {
-                    deals {
-                        id
-                        companyId
-                        primaryContactId
-                        company {
+        for headers in (
+            self.manager_headers(uuid.uuid4()),
+            self.sales_rep_headers(uuid.uuid4()),
+        ):
+            response = self.graphql(
+                """
+                    query Deals($firstId: ID!, $secondId: ID!) {
+                        deals {
+                            id
+                            companyId
+                            primaryContactId
+                            company {
+                                id
+                            }
+                            primaryContact {
+                                id
+                            }
+                        }
+                        first: deal(id: $firstId) {
                             id
                         }
-                        primaryContact {
+                        second: deal(id: $secondId) {
                             id
                         }
                     }
-                    visible: deal(id: $visibleId) {
-                        id
-                    }
-                    hidden: deal(id: $hiddenId) {
-                        id
-                    }
-                }
-            """,
-            variables={
-                "visibleId": str(visible_deal.id),
-                "hiddenId": str(Deal.objects.exclude(id=visible_deal.id).get().id),
-            },
-            headers=self.manager_headers(visible_company_id),
-        )
+                """,
+                variables={
+                    "firstId": str(first_deal.id),
+                    "secondId": str(second_deal.id),
+                },
+                headers=headers,
+            )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()["data"]["deals"],
-            [
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.json()["data"],
                 {
-                    "id": str(visible_deal.id),
-                    "companyId": str(visible_company_id),
-                    "primaryContactId": str(contact_id),
-                    "company": {"id": str(visible_company_id)},
-                    "primaryContact": {"id": str(contact_id)},
-                }
-            ],
-        )
-        self.assertEqual(
-            response.json()["data"]["visible"]["id"],
-            str(visible_deal.id),
-        )
-        self.assertIsNone(response.json()["data"]["hidden"])
+                    "deals": [
+                        {
+                            "id": str(second_deal.id),
+                            "companyId": str(second_company_id),
+                            "primaryContactId": None,
+                            "company": {"id": str(second_company_id)},
+                            "primaryContact": None,
+                        },
+                        {
+                            "id": str(first_deal.id),
+                            "companyId": str(first_company_id),
+                            "primaryContactId": str(contact_id),
+                            "company": {"id": str(first_company_id)},
+                            "primaryContact": {"id": str(contact_id)},
+                        },
+                    ],
+                    "first": {
+                        "id": str(first_deal.id),
+                    },
+                    "second": {
+                        "id": str(second_deal.id),
+                    },
+                },
+            )
 
     @patch("apps.deals.graphql.emit_deal_status_changed_event")
     def test_update_deal_status_persists_valid_transition(self, mock_emit_event):
@@ -323,6 +352,39 @@ class DealGraphQLTests(TestCase):
             mock_emit_event.call_args.kwargs["deal"].id,
             deal.id,
         )
+
+    @patch("apps.deals.graphql.emit_deal_status_changed_event")
+    def test_sales_rep_can_update_deal_status_globally(self, mock_emit_event):
+        deal = Deal.objects.create(
+            company_id=uuid.uuid4(),
+            status=DealStatus.NEW,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.graphql(
+                """
+                    mutation UpdateDealStatus($input: UpdateDealStatusInput!) {
+                        updateDealStatus(input: $input) {
+                            id
+                            status
+                        }
+                    }
+                """,
+                variables={
+                    "input": {
+                        "dealId": str(deal.id),
+                        "status": "QUALIFIED",
+                    }
+                },
+                headers=self.sales_rep_headers(uuid.uuid4()),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["data"]["updateDealStatus"]["status"],
+            "QUALIFIED",
+        )
+        mock_emit_event.assert_called_once()
 
     @patch("apps.deals.graphql.emit_deal_status_changed_event")
     def test_update_deal_status_noop_does_not_publish_event(self, mock_emit_event):

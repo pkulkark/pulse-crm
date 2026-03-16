@@ -7,39 +7,49 @@ Make access boundaries explicit, consistent, and enforced in every backend servi
 ## Scope
 
 - admin-only mutations for company and contact management
-- company-scoped read filtering
-- parent-company visibility rules
+- role-based access for deal, task, and activity operations
 - service-level authorization checks
+
+## Authorization Matrix
+
+Use the phase-specific matrix in [phase-8-authorization-matrix.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-8-authorization-matrix.md).
+
+The implementation should follow that matrix unless a clear technical reason requires a small adjustment. If the rules change, update the matrix doc in the same phase.
 
 ## Engineering Standards
 
 - code quality must be industry-standard and production-level
 - keep authorization rules explicit and testable
-- do not overengineer a policy engine unless the simple role/scope model becomes insufficient
+- do not overengineer a policy engine unless the simple role model becomes insufficient
 - avoid overly defensive authorization code that repeats the same rule in every resolver body; centralize where practical and keep enforcement visible
 - prefer denial by default for ambiguous access cases
 
 ## Work Breakdown
 
-1. Define the final rule set for admin, manager, and `sales_rep` scopes.
+1. Confirm and implement the authorization matrix for `admin`, `manager`, and `sales_rep`.
 2. Implement service-level authorization helpers or middleware where appropriate.
 3. Enforce admin-only company/contact mutations.
-4. Enforce company-scoped reads across services.
-5. Implement parent-company visibility across child-company data.
+4. Enforce authenticated reads across services.
+5. Align allow/deny behavior across list and detail operations.
 6. Add tests for allowed and forbidden access paths.
 
 ## Deliverables
 
 - consistent server-side authorization behavior
-- explicit parent-child visibility rules
 - permission tests for critical data boundaries
+- phase-specific authorization matrix documented and implemented
 
 ## Acceptance Criteria
 
 - non-admin users cannot create or edit companies or contacts
-- child-company users cannot access sibling-company data
-- parent-company users can access allowed child-company data
+- authenticated users can read CRM records regardless of company hierarchy position
+- managers and `sales_rep` users can create and update deals
+- managers can create and assign tasks
+- `sales_rep` users can update only the status of tasks assigned to them
+- managers can update only the status of tasks assigned to them, unless a broader admin privilege applies
+- managers and `sales_rep` users can create activities
 - authorization failures are clear and auditable
+- implemented authorization behavior matches the documented Phase 8 matrix, or any deviation is documented
 
 ## Out of Scope
 

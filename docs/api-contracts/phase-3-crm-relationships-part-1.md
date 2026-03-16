@@ -106,7 +106,7 @@ Purpose:
 
 Behavior:
 
-- returns only companies within the current user’s authorized scope
+- returns companies for any authenticated user
 
 ### `company`
 
@@ -117,7 +117,7 @@ Purpose:
 Behavior:
 
 - includes parent company, child companies, and contacts when requested
-- returns `null` if not found or not visible to the current user
+- returns `null` if not found
 
 ### `contact`
 
@@ -127,7 +127,7 @@ Purpose:
 
 Behavior:
 
-- returns `null` if not found or not visible to the current user
+- returns `null` if not found
 
 ### `createCompany` and `updateCompany`
 
@@ -232,17 +232,16 @@ mutation {
 ## Authorization Rules
 
 - `companies`, `company`, and `contact` require an authenticated user
-- visible records are filtered by the current user’s company scope
+- authenticated users may read company and contact records across the CRM
 - `createCompany`, `updateCompany`, `createContact`, and `updateContact` are admin-only
 
 ## Error Handling Expectations
 
 - invalid hierarchy changes should produce a clear validation error
 - admin-only mutation violations should produce an authorization error
-- record lookups outside the user’s scope should return `null` or a consistent authorization/not-found response based on the chosen GraphQL error approach
+- unauthenticated reads should return a consistent authentication error based on the chosen GraphQL error approach
 
 ## Implementation Notes
 
 - if `company(id)` and `contact(id)` are implemented as nullable fields, callers must handle missing values cleanly
 - if later phases require company search or pagination, those can be added without breaking this minimum contract
-

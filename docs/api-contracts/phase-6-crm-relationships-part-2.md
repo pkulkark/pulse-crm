@@ -140,7 +140,7 @@ type Mutation {
 
 Purpose:
 
-- return tasks visible to the current user within their company scope
+- return tasks visible to the current user
 
 Behavior:
 
@@ -156,7 +156,7 @@ Purpose:
 Behavior:
 
 - at least one filter should usually be provided by the caller
-- returns only activities visible within the current user’s authorized scope
+- returns activities for the requested company, contact, or deal filters
 
 ### `createTask`
 
@@ -286,8 +286,11 @@ mutation {
 ## Authorization Rules
 
 - all task and activity operations require an authenticated user
-- visible tasks and activities are filtered by the current user’s company scope
-- task and activity writes require access to the owning company scope
+- authenticated users can read tasks and activities across CRM data
+- `admin` and `manager` can create tasks
+- `admin` can update task fields broadly
+- `manager` and `sales_rep` can update only the status of tasks assigned to them
+- authenticated users in supported business roles can create activities
 
 ## Error Handling Expectations
 
@@ -299,4 +302,3 @@ mutation {
 
 - if the implementation prefers `task(id: ID!)` later, it can be added without breaking this minimum contract
 - if `dueDate` and `occurredAt` are represented as proper GraphQL scalar types later, this contract can evolve from `String` to a dedicated datetime scalar without changing the service boundary
-
