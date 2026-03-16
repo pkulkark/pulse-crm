@@ -13,11 +13,13 @@ import {
   DEALS_QUERY,
   ME_QUERY,
   TASKS_QUERY,
+  USERS_QUERY,
 } from './graphql';
 
 const companyId = '11111111-1111-1111-1111-111111111111';
 const dealId = '22222222-2222-2222-2222-222222222222';
 const contactId = '33333333-3333-3333-3333-333333333333';
+const salesRepUserId = '44444444-4444-4444-4444-444444444444';
 
 function createViewer(role) {
   return {
@@ -220,6 +222,27 @@ function createAuthenticatedMocks(role = 'ADMIN') {
         },
       },
     },
+    {
+      request: {
+        query: USERS_QUERY,
+        variables: {
+          role: 'SALES_REP',
+        },
+      },
+      result: {
+        data: {
+          users: [
+            {
+              __typename: 'User',
+              email: 'salesrep@example.com',
+              id: salesRepUserId,
+              name: 'Taylor Rep',
+              role: 'SALES_REP',
+            },
+          ],
+        },
+      },
+    },
   ];
 }
 
@@ -285,7 +308,43 @@ test('hides admin-only actions for managers while leaving operational actions vi
   expect(screen.queryByRole('button', { name: 'Edit company' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Add contact' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Create deal' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Create task' })).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Log activity' })).not.toBeNull();
+});
+
+test('shows an assignee picker for managers when creating a task', async () => {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, 'test-token');
+
+  renderApp(createAuthenticatedMocks('MANAGER'));
+
+  await screen.findByRole('heading', { name: 'Northwind' });
+  await userEvent.click(screen.getByRole('button', { name: 'Create task' }));
+
+  await screen.findByRole('heading', { name: 'New task' });
+  expect(screen.getByText('Assign the task to a sales rep.')).not.toBeNull();
+  expect(screen.getByLabelText('Assignee')).not.toBeNull();
+  await waitFor(() => {
+    expect(screen.getByRole('option', { name: /Taylor Rep/i })).not.toBeNull();
+  });
+});
+
+test('hides task creation controls for sales reps', async () => {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, 'test-token');
+
+  renderApp(createAuthenticatedMocks('SALES_REP'));
+
+  await screen.findByRole('heading', { name: 'Northwind' });
+
+  expect(screen.queryByRole('button', { name: 'Create task' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Create deal' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Log activity' })).not.toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Tasks' }));
+  await waitFor(() => {
+    expect(screen.getByRole('heading', { name: 'Work queue' })).not.toBeNull();
+  });
+
+  expect(screen.queryByRole('button', { name: 'Add Task' })).toBeNull();
 });
 
 test('navigates between main workspaces after sign-in', async () => {

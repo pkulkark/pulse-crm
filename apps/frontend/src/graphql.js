@@ -27,6 +27,17 @@ export const ME_QUERY = gql`
   }
 `;
 
+export const USERS_QUERY = gql`
+  query Users($role: UserRole) {
+    users(role: $role) {
+      id
+      name
+      email
+      role
+    }
+  }
+`;
+
 export const COMPANIES_QUERY = gql`
   query Companies {
     companies {

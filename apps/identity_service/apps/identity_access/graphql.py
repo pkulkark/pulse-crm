@@ -37,6 +37,7 @@ type_defs = gql(
 
     type Query {
       me: User
+      users(role: UserRole): [User!]!
     }
 
     type Mutation {
@@ -58,6 +59,34 @@ user_role = EnumType(
 )
 
 
+def get_request_user(info):
+    return info.context["request_context"]["user"]
+
+
+def require_authenticated_user(info):
+    user = get_request_user(info)
+
+    if not user["id"]:
+        raise GraphQLError(
+            "Authentication is required.",
+            extensions={"code": "UNAUTHENTICATED"},
+        )
+
+    return user
+
+
+def require_user_directory_access(info):
+    user = require_authenticated_user(info)
+
+    if user["role"] not in {UserRole.ADMIN, UserRole.MANAGER}:
+        raise GraphQLError(
+            "Only admins and managers can view assignable users.",
+            extensions={"code": "FORBIDDEN"},
+        )
+
+    return user
+
+
 @user.field("companyId")
 def resolve_user_company_id(obj, _info):
     return str(obj.company_id)
@@ -72,6 +101,19 @@ def resolve_me(_, info):
 
     user_model = get_user_model()
     return user_model.objects.filter(id=user_id, is_active=True).first()
+
+
+@query.field("users")
+def resolve_users(_, info, role=None):
+    require_user_directory_access(info)
+
+    user_model = get_user_model()
+    queryset = user_model.objects.filter(is_active=True).order_by("name", "email")
+
+    if role is not None:
+        queryset = queryset.filter(role=role)
+
+    return queryset
 
 
 @mutation.field("login")
@@ -105,4 +147,3 @@ def resolve_login(_, _info, input):
 
 
 schema = make_federated_schema(type_defs, [query, mutation, user, user_role])
-

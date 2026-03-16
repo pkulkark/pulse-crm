@@ -26,6 +26,7 @@ import {
   UPDATE_CONTACT_MUTATION,
   UPDATE_DEAL_STATUS_MUTATION,
   UPDATE_TASK_MUTATION,
+  USERS_QUERY,
 } from './graphql';
 
 const DEAL_STATUSES = ['NEW', 'QUALIFIED', 'WON', 'LOST'];
@@ -194,6 +195,18 @@ function filterDeals(deals, search, status) {
   });
 }
 
+function canCreateTasks(viewer) {
+  return viewer.role === 'ADMIN' || viewer.role === 'MANAGER';
+}
+
+function canEditTaskDetails(viewer) {
+  return viewer.role === 'ADMIN';
+}
+
+function canCompleteTask(viewer, task) {
+  return viewer.role === 'ADMIN' || task.userId === viewer.id;
+}
+
 function LoginScreen({ message, onLoggedIn }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -230,6 +243,7 @@ function LoginScreen({ message, onLoggedIn }) {
           <p>Known sample users</p>
           <p>`admin@example.com` / `secret`</p>
           <p>`manager@example.com` / `secret`</p>
+          <p>`salesrep@example.com` / `secret`</p>
         </div>
 
         {message ? <InlineMessage tone="info">{message}</InlineMessage> : null}
@@ -617,6 +631,9 @@ function DealFormDialog({
 }
 
 function TaskFormDialog({
+  assignableUsers,
+  assignableUsersError,
+  assignableUsersLoading,
   companies,
   deals,
   initialTask,
@@ -627,6 +644,7 @@ function TaskFormDialog({
   viewer,
 }) {
   const [title, setTitle] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [contactId, setContactId] = useState('');
   const [dealId, setDealId] = useState('');
@@ -637,6 +655,7 @@ function TaskFormDialog({
   const [updateTask, updateState] = useMutation(UPDATE_TASK_MUTATION);
   const isEditing = Boolean(initialTask);
   const loading = createState.loading || updateState.loading;
+  const allowAssigneeSelection = !isEditing && canCreateTasks(viewer);
   const companyQuery = useQuery(COMPANY_DETAIL_QUERY, {
     skip: !open || !companyId,
     variables: { id: companyId },
@@ -648,13 +667,26 @@ function TaskFormDialog({
     }
 
     setTitle(initialTask?.title ?? initialValues?.title ?? '');
+    setAssigneeId(
+      initialTask?.userId ??
+        initialValues?.userId ??
+        (allowAssigneeSelection ? '' : viewer.id),
+    );
     setCompanyId(initialTask?.companyId ?? initialValues?.companyId ?? '');
     setContactId(initialTask?.contactId ?? initialValues?.contactId ?? '');
     setDealId(initialTask?.dealId ?? initialValues?.dealId ?? '');
     setDueDate(initialTask?.dueDate ?? initialValues?.dueDate ?? '');
     setPriority(initialTask?.priority ?? initialValues?.priority ?? 'MEDIUM');
     setFormError('');
-  }, [initialTask, initialValues, open]);
+  }, [allowAssigneeSelection, initialTask, initialValues, open, viewer.id]);
+
+  useEffect(() => {
+    if (!open || !allowAssigneeSelection || assigneeId || assignableUsers.length === 0) {
+      return;
+    }
+
+    setAssigneeId(assignableUsers[0].id);
+  }, [allowAssigneeSelection, assignableUsers, assigneeId, open]);
 
   const contacts = companyQuery.data?.company?.contacts ?? [];
   const relatedDeals = deals.filter((deal) => deal.companyId === companyId);
@@ -684,7 +716,7 @@ function TaskFormDialog({
                 dueDate: dueDate || null,
                 priority,
                 title,
-                userId: viewer.id,
+                userId: allowAssigneeSelection ? assigneeId : viewer.id,
               },
             },
           }));
@@ -702,11 +734,52 @@ function TaskFormDialog({
   return (
     <Dialog
       title={isEditing ? 'Edit task' : 'New task'}
-      subtitle={isEditing ? 'Update the task details.' : 'Assign the task to your current user.'}
+      subtitle={
+        isEditing
+          ? 'Update the task details.'
+          : allowAssigneeSelection
+            ? 'Assign the task to a sales rep.'
+            : 'Assign the task to your current user.'
+      }
       onClose={onClose}
     >
       {formError ? <InlineMessage tone="error">{formError}</InlineMessage> : null}
       <form className="stacked-form" onSubmit={handleSubmit}>
+        {allowAssigneeSelection ? (
+          <label className="field">
+            <span>Assignee</span>
+            <select
+              disabled={assignableUsersLoading || assignableUsers.length === 0}
+              onChange={(event) => setAssigneeId(event.target.value)}
+              required
+              value={assigneeId}
+            >
+              <option value="" disabled>
+                Select a sales rep
+              </option>
+              {assignableUsers.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name} · {entry.email}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {allowAssigneeSelection && assignableUsersError ? (
+          <InlineMessage tone="error">
+            {getApolloErrorMessage(assignableUsersError)}
+          </InlineMessage>
+        ) : null}
+        {allowAssigneeSelection &&
+        !assignableUsersLoading &&
+        !assignableUsersError &&
+        assignableUsers.length === 0 ? (
+          <InlineMessage tone="info">
+            No sales reps are available to assign right now.
+          </InlineMessage>
+        ) : null}
+
         <label className="field">
           <span>Title</span>
           <input
@@ -793,7 +866,11 @@ function TaskFormDialog({
           <button className="secondary-button" onClick={onClose} type="button">
             Cancel
           </button>
-          <button className="primary-button" disabled={loading} type="submit">
+          <button
+            className="primary-button"
+            disabled={loading || (allowAssigneeSelection && !assigneeId)}
+            type="submit"
+          >
             {loading ? 'Saving…' : isEditing ? 'Update task' : 'Create task'}
           </button>
         </div>
@@ -1000,6 +1077,7 @@ function CompanyWorkspace({
     relationshipFilter,
   );
   const isAdmin = viewer.role === 'ADMIN';
+  const canCreateManualTask = canCreateTasks(viewer);
 
   return (
     <section className="workspace-grid">
@@ -1129,9 +1207,11 @@ function CompanyWorkspace({
                 <button className="secondary-button" onClick={onCreateDeal} type="button">
                   Create deal
                 </button>
-                <button className="secondary-button" onClick={onCreateTask} type="button">
-                  Create task
-                </button>
+                {canCreateManualTask ? (
+                  <button className="secondary-button" onClick={onCreateTask} type="button">
+                    Create task
+                  </button>
+                ) : null}
                 <button className="secondary-button" onClick={onActivityRequested} type="button">
                   Log activity
                 </button>
@@ -1308,7 +1388,9 @@ function DealsWorkspace({
   statusFilter,
   tasks,
   updateState,
+  viewer,
 }) {
+  const canCreateManualTask = canCreateTasks(viewer);
   const filteredDeals = filterDeals(deals, dealSearch, statusFilter);
 
   return (
@@ -1426,9 +1508,11 @@ function DealsWorkspace({
               </div>
 
               <div className="button-row">
-                <button className="secondary-button" onClick={onCreateTask} type="button">
-                  Create task
-                </button>
+                {canCreateManualTask ? (
+                  <button className="secondary-button" onClick={onCreateTask} type="button">
+                    Create task
+                  </button>
+                ) : null}
                 <button className="secondary-button" onClick={onActivityRequested} type="button">
                   Log activity
                 </button>
@@ -1546,6 +1630,9 @@ function TasksWorkspace({
   tasksLoading,
   viewer,
 }) {
+  const canCreateManualTask = canCreateTasks(viewer);
+  const canEditDetails = canEditTaskDetails(viewer);
+
   return (
     <section className="workspace-grid single-column">
       <article className="panel">
@@ -1554,9 +1641,11 @@ function TasksWorkspace({
             <p className="panel-eyebrow">Tasks</p>
             <h2>Work queue</h2>
           </div>
-          <button className="primary-button" onClick={onCreateTask} type="button">
-            Add Task
-          </button>
+          {canCreateManualTask ? (
+            <button className="primary-button" onClick={onCreateTask} type="button">
+              Add Task
+            </button>
+          ) : null}
         </div>
 
         <div className="toolbar">
@@ -1593,7 +1682,11 @@ function TasksWorkspace({
 
         {!tasksError && !tasksLoading && tasks.length === 0 ? (
           <EmptyState
-            body="Create a task manually or update a deal status so the async workflow can create one."
+            body={
+              canCreateManualTask
+                ? 'Create a task manually or update a deal status so the async workflow can create one.'
+                : 'Update a deal status or complete assigned work to keep this queue moving.'
+            }
             title="No tasks in this view"
           />
         ) : null}
@@ -1629,14 +1722,16 @@ function TasksWorkspace({
                     <td>{formatEnumLabel(task.status)}</td>
                     <td>
                       <div className="button-row compact-row">
-                        <button
-                          className="text-button"
-                          onClick={() => onEditTask(task)}
-                          type="button"
-                        >
-                          Edit
-                        </button>
-                        {task.status === 'OPEN' ? (
+                        {canEditDetails ? (
+                          <button
+                            className="text-button"
+                            onClick={() => onEditTask(task)}
+                            type="button"
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {task.status === 'OPEN' && canCompleteTask(viewer, task) ? (
                           <button
                             className="text-button"
                             onClick={() => onTaskCompleted(task.id)}
@@ -1688,6 +1783,10 @@ function CrmWorkspace({ viewer, onLoggedOut }) {
       }),
     },
   });
+  const assignableUsersResult = useQuery(USERS_QUERY, {
+    skip: !taskDialog || !canCreateTasks(viewer),
+    variables: { role: 'SALES_REP' },
+  });
   const companyDetailResult = useQuery(COMPANY_DETAIL_QUERY, {
     skip: currentView !== 'companies' || !selectedCompanyId,
     variables: { id: selectedCompanyId },
@@ -1721,6 +1820,7 @@ function CrmWorkspace({ viewer, onLoggedOut }) {
 
   const companies = companiesResult.data?.companies ?? [];
   const deals = dealsResult.data?.deals ?? [];
+  const assignableUsers = assignableUsersResult.data?.users ?? [];
   const selectedCompany = companyDetailResult.data?.company ?? null;
   const selectedDeal = dealDetailResult.data?.deal ?? null;
   const companyActivities = (companyActivitiesResult.data?.activities ?? [])
@@ -2058,6 +2158,7 @@ function CrmWorkspace({ viewer, onLoggedOut }) {
               loading: updateDealStatusState.loading,
               statusNotice: dealStatusNotice,
             }}
+            viewer={viewer}
           />
         ) : null}
 
@@ -2104,6 +2205,9 @@ function CrmWorkspace({ viewer, onLoggedOut }) {
       />
 
       <TaskFormDialog
+        assignableUsers={assignableUsers}
+        assignableUsersError={assignableUsersResult.error}
+        assignableUsersLoading={assignableUsersResult.loading}
         companies={companies}
         deals={deals}
         initialTask={taskDialog?.initialTask ?? null}

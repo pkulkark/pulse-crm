@@ -12,6 +12,9 @@ class IdentityAccessTests(TestCase):
         self.assertTrue(
             user_model.objects.filter(email="manager@example.com").exists(),
         )
+        self.assertTrue(
+            user_model.objects.filter(email="salesrep@example.com").exists(),
+        )
 
     def test_login_returns_token_and_user(self):
         response = self.client.post(
@@ -133,3 +136,68 @@ class IdentityAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.json()["data"]["me"])
+
+    def test_manager_can_query_sales_rep_directory(self):
+        manager = get_user_model().objects.get(email="manager@example.com")
+
+        response = self.client.post(
+            "/graphql/",
+            data=json.dumps(
+                {
+                    "query": """
+                        query Users($role: UserRole) {
+                            users(role: $role) {
+                                email
+                                name
+                                role
+                            }
+                        }
+                    """,
+                    "variables": {"role": "SALES_REP"},
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_USER_ID=str(manager.id),
+            HTTP_X_USER_ROLE=manager.role,
+            HTTP_X_COMPANY_ID=str(manager.company_id),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["data"]["users"],
+            [
+                {
+                    "email": "salesrep@example.com",
+                    "name": "Sample Sales Rep",
+                    "role": "SALES_REP",
+                }
+            ],
+        )
+
+    def test_sales_rep_cannot_query_user_directory(self):
+        sales_rep = get_user_model().objects.get(email="salesrep@example.com")
+
+        response = self.client.post(
+            "/graphql/",
+            data=json.dumps(
+                {
+                    "query": """
+                        query Users {
+                            users {
+                                id
+                            }
+                        }
+                    """
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_USER_ID=str(sales_rep.id),
+            HTTP_X_USER_ROLE=sales_rep.role,
+            HTTP_X_COMPANY_ID=str(sales_rep.company_id),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["errors"][0]["extensions"]["code"],
+            "FORBIDDEN",
+        )
