@@ -12,5 +12,4 @@ COPY apps/gateway apps/gateway
 
 EXPOSE 4000
 
-CMD ["npm", "run", "start", "--workspace", "@samplecrm/gateway"]
-
+CMD ["npm", "run", "start", "--workspace", "@pulsecrm/gateway"]

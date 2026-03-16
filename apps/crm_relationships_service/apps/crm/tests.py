@@ -86,6 +86,30 @@ class CrmGraphQLTests(TestCase):
             parent_company["id"],
         )
 
+    def test_seeded_default_company_is_visible_to_manager_scope(self):
+        response = self.graphql(
+            """
+                query Companies {
+                    companies {
+                        id
+                        name
+                    }
+                }
+            """,
+            headers=self.manager_headers(DEFAULT_COMPANY_ID),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["data"]["companies"],
+            [
+                {
+                    "id": str(DEFAULT_COMPANY_ID),
+                    "name": "Sample Industries",
+                }
+            ],
+        )
+
     def test_company_detail_exposes_hierarchy_and_contacts(self):
         parent_company = Company.objects.create(name="Northwind")
         child_company = Company.objects.create(
@@ -810,7 +834,10 @@ class CrmGraphQLTests(TestCase):
         )
 
     def test_kafka_generated_tasks_are_visible_through_tasks_query(self):
-        company = Company.objects.create(id=DEFAULT_COMPANY_ID, name="Kafka Co")
+        company, _created = Company.objects.update_or_create(
+            id=DEFAULT_COMPANY_ID,
+            defaults={"name": "Kafka Co"},
+        )
 
         handle_consumer_message(
             SimpleNamespace(
@@ -862,7 +889,10 @@ class CrmGraphQLTests(TestCase):
 
 class DealStatusChangedConsumerTests(TestCase):
     def setUp(self):
-        self.company = Company.objects.create(id=DEFAULT_COMPANY_ID, name="Kafka Co")
+        self.company, _created = Company.objects.update_or_create(
+            id=DEFAULT_COMPANY_ID,
+            defaults={"name": "Kafka Co"},
+        )
         self.company_id = self.company.id
 
     def build_message(self, *, event_id="evt-123", new_status="QUALIFIED"):

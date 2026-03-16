@@ -12,13 +12,13 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npm run lint --workspace @samplecrm/gateway"
+        "command": "npm run lint --workspace @pulsecrm/gateway"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "PORT=4000 npm run start --workspace @samplecrm/gateway"
+        "command": "PORT=4000 npm run start --workspace @pulsecrm/gateway"
       }
     },
     "test": {

@@ -6,6 +6,15 @@ function parseBooleanFlag(value, defaultValue) {
   return value.toLowerCase() === 'true';
 }
 
+function parseCommaSeparatedList(value, defaultValue) {
+  const rawValue = value ?? defaultValue;
+
+  return rawValue
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export function getGatewayConfig(env = process.env) {
   const port = Number.parseInt(env.PORT ?? '4000', 10);
 
@@ -50,6 +59,10 @@ export function getGatewayConfig(env = process.env) {
   return {
     enabledSubgraphs,
     authTokenSecret: env.AUTH_TOKEN_SECRET ?? 'identity-service-dev-secret',
+    corsAllowedOrigins: parseCommaSeparatedList(
+      env.CORS_ALLOWED_ORIGINS,
+      'http://localhost:3000,http://127.0.0.1:3000',
+    ),
     gatewayName: env.GATEWAY_NAME ?? 'samplecrm-gateway',
     host: env.HOST ?? '0.0.0.0',
     port,

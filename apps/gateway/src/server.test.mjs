@@ -267,6 +267,10 @@ async function startTestGateway({ failQueries = false } = {}) {
       gatewayName: 'test-gateway',
       host: '127.0.0.1',
       port: 0,
+      corsAllowedOrigins: [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+      ],
       subgraphs: [
         {
           enabled: true,
@@ -310,6 +314,34 @@ test('ready endpoint responds with gateway status and enabled subgraphs', async 
   assert.deepEqual(payload.subgraphs, ['crmRelationships', 'identity']);
 });
 
+test('gateway answers browser preflight requests for allowed frontend origins', async (t) => {
+  const runtime = await startTestGateway();
+  t.after(async () => runtime.stop());
+
+  const response = await fetch(`${runtime.gateway.url}/`, {
+    headers: {
+      'access-control-request-headers': 'authorization,content-type',
+      'access-control-request-method': 'POST',
+      origin: 'http://127.0.0.1:3000',
+    },
+    method: 'OPTIONS',
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(
+    response.headers.get('access-control-allow-origin'),
+    'http://127.0.0.1:3000',
+  );
+  assert.equal(
+    response.headers.get('access-control-allow-methods'),
+    'POST, OPTIONS',
+  );
+  assert.equal(
+    response.headers.get('access-control-allow-headers'),
+    'authorization,content-type',
+  );
+});
+
 test('gateway forwards only validated bearer token context downstream', async (t) => {
   const runtime = await startTestGateway();
   t.after(async () => runtime.stop());
@@ -346,6 +378,7 @@ test('gateway forwards only validated bearer token context downstream', async (t
     headers: {
       authorization: `Bearer ${token}`,
       'content-type': 'application/json',
+      origin: 'http://127.0.0.1:3000',
       'x-correlation-id': 'corr-123',
       'x-user-id': 'spoofed-user',
       'x-user-role': 'spoofed-role',
@@ -354,6 +387,10 @@ test('gateway forwards only validated bearer token context downstream', async (t
   });
 
   assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get('access-control-allow-origin'),
+    'http://127.0.0.1:3000',
+  );
 
   const payload = await response.json();
   assert.deepEqual(payload.data.serviceHealth, {

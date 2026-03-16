@@ -6,13 +6,13 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "cd apps/crm_relationships_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check"
+        "command": "cd apps/crm_relationships_service && PYTHONPYCACHEPREFIX=/tmp/pulsecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "cd apps/crm_relationships_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check"
+        "command": "cd apps/crm_relationships_service && PYTHONPYCACHEPREFIX=/tmp/pulsecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check"
       }
     },
     "serve": {

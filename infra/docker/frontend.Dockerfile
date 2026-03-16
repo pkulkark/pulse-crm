@@ -12,5 +12,4 @@ COPY apps/frontend apps/frontend
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--workspace", "@samplecrm/frontend", "--", "--host", "0.0.0.0", "--port", "3000"]
-
+CMD ["npm", "run", "dev", "--workspace", "@pulsecrm/frontend", "--", "--host", "0.0.0.0", "--port", "3000"]

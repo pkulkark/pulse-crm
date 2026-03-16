@@ -9,9 +9,10 @@ import { getGatewayConfig } from './config.mjs';
 import { CONTEXT_HEADERS, createRequestContext } from './context.mjs';
 import { logJson, serializeError } from './logger.mjs';
 
-function jsonResponse(response, statusCode, payload) {
+function jsonResponse(response, statusCode, payload, extraHeaders = {}) {
   response.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
+    ...extraHeaders,
   });
   response.end(JSON.stringify(payload));
 }
@@ -108,14 +109,46 @@ class ContextPropagatingDataSource extends RemoteGraphQLDataSource {
   }
 }
 
-async function sendGraphQLResponse(response, graphQLResponse) {
+function normalizeHeaderValue(value) {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return typeof value === 'string' ? value : '';
+}
+
+function createCorsHeaders(request, gatewayConfig) {
+  const origin = normalizeHeaderValue(request.headers.origin).trim();
+
+  if (!origin || !gatewayConfig.corsAllowedOrigins.includes(origin)) {
+    return {};
+  }
+
+  const requestedHeaders = normalizeHeaderValue(
+    request.headers['access-control-request-headers'],
+  ).trim();
+
+  return {
+    'Access-Control-Allow-Headers':
+      requestedHeaders || 'authorization, content-type, x-correlation-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Max-Age': '600',
+    Vary: 'Origin',
+  };
+}
+
+async function sendGraphQLResponse(response, graphQLResponse, extraHeaders = {}) {
   const headers = {};
 
   graphQLResponse.headers.forEach((value, key) => {
     headers[key] = value;
   });
 
-  response.writeHead(graphQLResponse.status ?? 200, headers);
+  response.writeHead(graphQLResponse.status ?? 200, {
+    ...headers,
+    ...extraHeaders,
+  });
 
   if (graphQLResponse.body.kind === 'complete') {
     response.end(graphQLResponse.body.string);
@@ -190,30 +223,61 @@ async function createApolloServer({ gatewayConfig, logger }) {
 function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
   return async function handleRequest(request, response) {
     const requestUrl = new URL(request.url ?? '/', 'http://localhost');
+    const corsHeaders = createCorsHeaders(request, gatewayConfig);
 
     if (
       requestUrl.pathname === '/health' ||
       requestUrl.pathname === '/health/'
     ) {
-      return jsonResponse(response, 200, {
-        graphql: '/',
-        ready: true,
-        service: gatewayConfig.gatewayName,
-        status: 'ok',
-        subgraphs: gatewayConfig.enabledSubgraphs.map(({ name }) => name),
-      });
+      return jsonResponse(
+        response,
+        200,
+        {
+          graphql: '/',
+          ready: true,
+          service: gatewayConfig.gatewayName,
+          status: 'ok',
+          subgraphs: gatewayConfig.enabledSubgraphs.map(({ name }) => name),
+        },
+        corsHeaders,
+      );
     }
 
     if (requestUrl.pathname !== '/') {
-      return jsonResponse(response, 404, {
-        error: 'Not found',
-      });
+      return jsonResponse(
+        response,
+        404,
+        {
+          error: 'Not found',
+        },
+        corsHeaders,
+      );
+    }
+
+    if (request.method === 'OPTIONS') {
+      if (Object.keys(corsHeaders).length === 0) {
+        return jsonResponse(
+          response,
+          403,
+          {
+            error: 'Origin not allowed.',
+          },
+          {
+            Vary: 'Origin',
+          },
+        );
+      }
+
+      response.writeHead(204, corsHeaders);
+      response.end();
+      return;
     }
 
     if (request.method !== 'POST') {
       response.writeHead(405, {
         Allow: 'POST',
         'Content-Type': 'application/json; charset=utf-8',
+        ...corsHeaders,
       });
       response.end(
         JSON.stringify({
@@ -240,27 +304,37 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
         },
       });
 
-      await sendGraphQLResponse(response, graphQLResponse);
+      await sendGraphQLResponse(response, graphQLResponse, corsHeaders);
     } catch (error) {
       if (error instanceof SyntaxError) {
-        jsonResponse(response, 400, {
-          errors: [
-            {
-              message: 'GraphQL request body must be valid JSON.',
-            },
-          ],
-        });
+        jsonResponse(
+          response,
+          400,
+          {
+            errors: [
+              {
+                message: 'GraphQL request body must be valid JSON.',
+              },
+            ],
+          },
+          corsHeaders,
+        );
         return;
       }
 
       if (error instanceof AuthTokenError) {
-        jsonResponse(response, 401, {
-          errors: [
-            {
-              message: error.message,
-            },
-          ],
-        });
+        jsonResponse(
+          response,
+          401,
+          {
+            errors: [
+              {
+                message: error.message,
+              },
+            ],
+          },
+          corsHeaders,
+        );
         return;
       }
 
@@ -270,13 +344,18 @@ function createRequestRouter({ apolloServer, gatewayConfig, logger }) {
         error: serializeError(error),
       });
 
-      jsonResponse(response, 500, {
-        errors: [
-          {
-            message: 'Gateway request handling failed.',
-          },
-        ],
-      });
+      jsonResponse(
+        response,
+        500,
+        {
+          errors: [
+            {
+              message: 'Gateway request handling failed.',
+            },
+          ],
+        },
+        corsHeaders,
+      );
     }
   };
 }
