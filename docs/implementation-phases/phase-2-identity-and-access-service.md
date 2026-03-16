@@ -13,7 +13,7 @@ Implement internal user identity and role awareness so later services can author
 
 ## API Contract
 
-Use the phase-specific contract in [phase-2-identity-access.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-2-identity-access.md).
+Use the phase-specific contract in [phase-2-identity-access.md](../api-contracts/phase-2-identity-access.md).
 
 The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
 

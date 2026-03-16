@@ -14,7 +14,7 @@ Add work tracking and relationship history to the CRM Relationships service.
 
 ## API Contract
 
-Use the phase-specific contract in [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md).
+Use the phase-specific contract in [phase-6-crm-relationships-part-2.md](../api-contracts/phase-6-crm-relationships-part-2.md).
 
 The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
 

@@ -14,7 +14,7 @@ Implement sales opportunities with clear lifecycle ownership in a dedicated serv
 
 ## API Contract
 
-Use the phase-specific contract in [phase-4-deals-service.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-4-deals-service.md).
+Use the phase-specific contract in [phase-4-deals-service.md](../api-contracts/phase-4-deals-service.md).
 
 The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
 

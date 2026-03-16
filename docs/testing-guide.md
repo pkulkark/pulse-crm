@@ -22,6 +22,8 @@ python3 -m venv .venv
 ./.venv/bin/pip install -r apps/deals_service/requirements.txt
 ```
 
+The URLs below assume the default Compose ports with no local `.env` override. If you copy `.env.example` to `.env`, the identity-service host port changes from `8101` to `8001`.
+
 Useful local endpoints:
 
 - frontend: `http://localhost:3000`
@@ -35,12 +37,12 @@ Useful local endpoints:
 
 All commands defined in these files should work:
 
-- [project.json](/Users/poojakulkarni/SampleCRM/project.json)
-- [apps/frontend/project.json](/Users/poojakulkarni/SampleCRM/apps/frontend/project.json)
-- [apps/gateway/project.json](/Users/poojakulkarni/SampleCRM/apps/gateway/project.json)
-- [apps/identity_service/project.json](/Users/poojakulkarni/SampleCRM/apps/identity_service/project.json)
-- [apps/crm_relationships_service/project.json](/Users/poojakulkarni/SampleCRM/apps/crm_relationships_service/project.json)
-- [apps/deals_service/project.json](/Users/poojakulkarni/SampleCRM/apps/deals_service/project.json)
+- [project.json](../project.json)
+- [apps/frontend/project.json](../apps/frontend/project.json)
+- [apps/gateway/project.json](../apps/gateway/project.json)
+- [apps/identity_service/project.json](../apps/identity_service/project.json)
+- [apps/crm_relationships_service/project.json](../apps/crm_relationships_service/project.json)
+- [apps/deals_service/project.json](../apps/deals_service/project.json)
 
 For one-shot targets like `build`, `lint`, and `test`, success means the command exits cleanly.
 
@@ -60,11 +62,19 @@ npm run lint
 npm run test
 ```
 
-If `nx run-many` is flaky in a local environment, verify the underlying project targets directly as well.
+If the Nx daemon crashes locally, rerun the same commands with `NX_DAEMON=false`:
+
+```bash
+NX_DAEMON=false npm run build
+NX_DAEMON=false npm run lint
+NX_DAEMON=false npm run test
+```
+
+If `nx run-many` is still flaky in a local environment, verify the underlying project targets directly as well.
 
 ## Workspace Commands
 
-Current workspace-level checks behind [project.json](/Users/poojakulkarni/SampleCRM/project.json):
+Current workspace-level checks behind [project.json](../project.json):
 
 ```bash
 node -e "const fs=require('node:fs'); const required=['.editorconfig','.env.example','docker-compose.yml','eslint.config.mjs','nx.json','package.json','ruff.toml']; for (const file of required) { if (!fs.existsSync(file)) { throw new Error('Missing required file: ' + file); } } JSON.parse(fs.readFileSync('package.json','utf8')); JSON.parse(fs.readFileSync('nx.json','utf8')); JSON.parse(fs.readFileSync('project.json','utf8')); const compose=fs.readFileSync('docker-compose.yml','utf8'); for (const marker of ['frontend:','gateway:','identity-service:','crm-relationships-service:','deals-service:','identity-db:','crm-db:','deals-db:','kafka:']) { if (!compose.includes(marker)) { throw new Error('Missing compose service definition: ' + marker); } }"
@@ -80,18 +90,18 @@ Expected result:
 
 ## Frontend Commands
 
-Commands behind [apps/frontend/project.json](/Users/poojakulkarni/SampleCRM/apps/frontend/project.json):
+Commands behind [apps/frontend/project.json](../apps/frontend/project.json):
 
 ```bash
-npm run build --workspace @samplecrm/frontend
-npm run lint --workspace @samplecrm/frontend
-node -e "const fs=require('node:fs'); const required=['apps/frontend/package.json','apps/frontend/project.json','apps/frontend/index.html','apps/frontend/src/App.jsx','apps/frontend/src/main.jsx','apps/frontend/src/styles.css','apps/frontend/vite.config.js']; for (const file of required) { if (!fs.existsSync(file)) { throw new Error('Missing required file: ' + file); } } const appSource=fs.readFileSync('apps/frontend/src/App.jsx','utf8'); if (!appSource.includes('Sample Workspace')) { throw new Error('Frontend placeholder copy is missing'); } if (!appSource.includes('Gateway')) { throw new Error('Frontend service list is missing gateway content'); }"
+npm run build --workspace @pulsecrm/frontend
+npm run lint --workspace @pulsecrm/frontend
+node -e "const fs=require('node:fs'); const required=['apps/frontend/package.json','apps/frontend/project.json','apps/frontend/index.html','apps/frontend/src/App.jsx','apps/frontend/src/main.jsx','apps/frontend/src/styles.css','apps/frontend/vite.config.js']; for (const file of required) { if (!fs.existsSync(file)) { throw new Error('Missing required file: ' + file); } } const appSource=fs.readFileSync('apps/frontend/src/App.jsx','utf8'); for (const marker of ['PulseCRM','Internal workspace','Gateway-backed CRM screens']) { if (!appSource.includes(marker)) { throw new Error('Frontend app content is missing marker: ' + marker); } }"
 ```
 
 Serve check:
 
 ```bash
-npm run dev --workspace @samplecrm/frontend -- --host 0.0.0.0 --port 3000
+npm run dev --workspace @pulsecrm/frontend -- --host 0.0.0.0 --port 3000
 curl http://127.0.0.1:3000
 ```
 
@@ -104,18 +114,18 @@ Expected result:
 
 ## Gateway Commands
 
-Commands behind [apps/gateway/project.json](/Users/poojakulkarni/SampleCRM/apps/gateway/project.json):
+Commands behind [apps/gateway/project.json](../apps/gateway/project.json):
 
 ```bash
 node --check apps/gateway/src/server.mjs
-npm run lint --workspace @samplecrm/gateway
+npm run lint --workspace @pulsecrm/gateway
 node --test apps/gateway/src/server.test.mjs
 ```
 
 Serve check:
 
 ```bash
-PORT=4000 npm run start --workspace @samplecrm/gateway
+PORT=4000 npm run start --workspace @pulsecrm/gateway
 curl http://127.0.0.1:4000/health
 ```
 
@@ -138,10 +148,10 @@ The three Django services should all support:
 
 ### Identity Service
 
-Commands behind [apps/identity_service/project.json](/Users/poojakulkarni/SampleCRM/apps/identity_service/project.json):
+Commands behind [apps/identity_service/project.json](../apps/identity_service/project.json):
 
 ```bash
-cd apps/identity_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check
+cd apps/identity_service && PYTHONPYCACHEPREFIX=/tmp/pulsecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check
 cd apps/identity_service && ../../.venv/bin/python manage.py test
 cd apps/identity_service && DB_HOST=127.0.0.1 DB_PORT=5433 ../../.venv/bin/python manage.py runserver 0.0.0.0:8101
 ```
@@ -154,10 +164,10 @@ curl http://127.0.0.1:8101/health/
 
 ### CRM Relationships Service
 
-Commands behind [apps/crm_relationships_service/project.json](/Users/poojakulkarni/SampleCRM/apps/crm_relationships_service/project.json):
+Commands behind [apps/crm_relationships_service/project.json](../apps/crm_relationships_service/project.json):
 
 ```bash
-cd apps/crm_relationships_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check
+cd apps/crm_relationships_service && PYTHONPYCACHEPREFIX=/tmp/pulsecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check
 cd apps/crm_relationships_service && ../../.venv/bin/python manage.py test
 cd apps/crm_relationships_service && DB_HOST=127.0.0.1 DB_PORT=5434 ../../.venv/bin/python manage.py runserver 0.0.0.0:8002
 ```
@@ -170,10 +180,10 @@ curl http://127.0.0.1:8002/health/
 
 ### Deals Service
 
-Commands behind [apps/deals_service/project.json](/Users/poojakulkarni/SampleCRM/apps/deals_service/project.json):
+Commands behind [apps/deals_service/project.json](../apps/deals_service/project.json):
 
 ```bash
-cd apps/deals_service && PYTHONPYCACHEPREFIX=/tmp/samplecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check
+cd apps/deals_service && PYTHONPYCACHEPREFIX=/tmp/pulsecrm-pyc ../../.venv/bin/python -m compileall -q . && ../../.venv/bin/python manage.py check
 cd apps/deals_service && ../../.venv/bin/python manage.py test
 cd apps/deals_service && DB_HOST=127.0.0.1 DB_PORT=5435 ../../.venv/bin/python manage.py runserver 0.0.0.0:8003
 ```
@@ -228,6 +238,7 @@ Current known users:
 
 - `admin@example.com` / `secret`
 - `manager@example.com` / `secret`
+- `salesrep@example.com` / `secret`
 
 ### Health
 
@@ -329,7 +340,7 @@ curl http://localhost:4000/ \
   -d '{"query":"mutation { createCompany(input: { name: \"Should Be Blocked\" }) { id } }"}'
 ```
 
-Verify scoped reads for non-admin users:
+Verify authenticated reads for non-admin users:
 
 ```bash
 curl http://localhost:4000/ \
@@ -347,7 +358,7 @@ Expected result:
 - admin can create a contact under the parent company
 - `company(id)` returns the parent company with its child company and contact data
 - manager `createCompany` fails with a `FORBIDDEN` GraphQL error
-- manager `company(id)` returns `null` for records outside the current scoped-read model
+- manager `company(id)` returns the requested company record
 
 Optional cleanup:
 
@@ -363,6 +374,7 @@ Use this before considering a change safe:
    - `npm run build`
    - `npm run lint`
    - `npm run test`
+   - if the Nx daemon crashes locally, rerun them with `NX_DAEMON=false`
 2. Every command defined in `project.json` files still works.
 3. Docker Compose still boots cleanly.
 4. Gateway `/health` still responds.

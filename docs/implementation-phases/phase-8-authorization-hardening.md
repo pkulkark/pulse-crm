@@ -12,7 +12,7 @@ Make access boundaries explicit, consistent, and enforced in every backend servi
 
 ## Authorization Matrix
 
-Use the phase-specific matrix in [phase-8-authorization-matrix.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-8-authorization-matrix.md).
+Use the phase-specific matrix in [phase-8-authorization-matrix.md](../api-contracts/phase-8-authorization-matrix.md).
 
 The implementation should follow that matrix unless a clear technical reason requires a small adjustment. If the rules change, update the matrix doc in the same phase.
 

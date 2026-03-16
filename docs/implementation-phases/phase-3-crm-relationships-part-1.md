@@ -14,7 +14,7 @@ Implement the company and contact foundation that anchors the rest of the CRM do
 
 ## API Contract
 
-Use the phase-specific contract in [phase-3-crm-relationships-part-1.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-3-crm-relationships-part-1.md).
+Use the phase-specific contract in [phase-3-crm-relationships-part-1.md](../api-contracts/phase-3-crm-relationships-part-1.md).
 
 The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
 

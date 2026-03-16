@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-This document translates the architecture in [`architecture.md`](/Users/poojakulkarni/SampleCRM/docs/architecture.md) into a practical implementation plan.
+This document translates the architecture in [`architecture.md`](architecture.md) into a practical implementation plan.
 
 The goal is to deliver a working system that:
 
@@ -13,7 +13,7 @@ The goal is to deliver a working system that:
 
 This plan follows a production-minded approach while staying realistic for an initial implementation.
 
-Detailed implementation documents for each phase live in [`implementation-phases/README.md`](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/README.md).
+Detailed implementation documents for each phase live in [`implementation-phases/README.md`](implementation-phases/README.md).
 
 ## 2. Delivery Strategy
 
@@ -65,16 +65,16 @@ This order reduces risk because it proves the hardest architectural requirements
 
 This document is the roadmap summary. The detailed execution plan for each phase is documented separately:
 
-- [Phase 0: Repository and Workspace Setup](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-0-repository-and-workspace-setup.md)
-- [Phase 1: GraphQL Gateway Skeleton](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-1-graphql-gateway-skeleton.md)
-- [Phase 2: Identity and Access Service](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-2-identity-and-access-service.md)
-- [Phase 3: CRM Relationships Service, Part 1](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-3-crm-relationships-part-1.md)
-- [Phase 4: Deals Service](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-4-deals-service.md)
-- [Phase 5: Kafka and Asynchronous Workflow](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-5-kafka-and-async-workflow.md)
-- [Phase 6: CRM Relationships Service, Part 2](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-6-crm-relationships-part-2.md)
-- [Phase 7: Frontend Screens](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-7-frontend-screens.md)
-- [Phase 8: Authorization Hardening](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-8-authorization-hardening.md)
-- [Phase 9: Quality, Documentation, and Release Finish](/Users/poojakulkarni/SampleCRM/docs/implementation-phases/phase-9-quality-documentation-and-release-finish.md)
+- [Phase 0: Repository and Workspace Setup](implementation-phases/phase-0-repository-and-workspace-setup.md)
+- [Phase 1: GraphQL Gateway Skeleton](implementation-phases/phase-1-graphql-gateway-skeleton.md)
+- [Phase 2: Identity and Access Service](implementation-phases/phase-2-identity-and-access-service.md)
+- [Phase 3: CRM Relationships Service, Part 1](implementation-phases/phase-3-crm-relationships-part-1.md)
+- [Phase 4: Deals Service](implementation-phases/phase-4-deals-service.md)
+- [Phase 5: Kafka and Asynchronous Workflow](implementation-phases/phase-5-kafka-and-async-workflow.md)
+- [Phase 6: CRM Relationships Service, Part 2](implementation-phases/phase-6-crm-relationships-part-2.md)
+- [Phase 7: Frontend Screens](implementation-phases/phase-7-frontend-screens.md)
+- [Phase 8: Authorization Hardening](implementation-phases/phase-8-authorization-hardening.md)
+- [Phase 9: Quality, Documentation, and Release Finish](implementation-phases/phase-9-quality-documentation-and-release-finish.md)
 
 ## 6. Minimal End-to-End Milestone
 
@@ -173,7 +173,7 @@ Mitigation:
 
 Mitigation:
 
-- follow the limited screen set in [`frontend.md`](/Users/poojakulkarni/SampleCRM/docs/frontend.md)
+- follow the limited screen set in [`frontend.md`](frontend.md)
 - treat activity/task forms as modal or inline flows instead of building many separate pages
 
 ## 10. Recommended Testing Strategy

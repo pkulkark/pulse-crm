@@ -14,7 +14,7 @@ Implement the core asynchronous workflow: a deal status change publishes an even
 
 ## Event Contract
 
-Use the phase-specific contract in [phase-5-deal-status-changed-event.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-5-deal-status-changed-event.md).
+Use the phase-specific contract in [phase-5-deal-status-changed-event.md](../api-contracts/phase-5-deal-status-changed-event.md).
 
 The implementation should follow that contract unless a clear technical reason requires a small adjustment. If the contract changes, update the contract doc in the same phase.
 

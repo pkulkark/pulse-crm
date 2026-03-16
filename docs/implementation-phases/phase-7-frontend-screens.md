@@ -16,7 +16,7 @@ Deliver the smallest complete frontend surface that proves the CRM workflows end
 
 ## Frontend-to-API Mapping
 
-Use the consumption map in [phase-7-frontend-api-mapping.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-7-frontend-api-mapping.md).
+Use the consumption map in [phase-7-frontend-api-mapping.md](../api-contracts/phase-7-frontend-api-mapping.md).
 
 This phase should consume the existing contracts from earlier phases rather than define a new API contract unless a real contract gap is discovered.
 
@@ -64,6 +64,6 @@ This phase should consume the existing contracts from earlier phases rather than
 
 ## Recommended Verification
 
-- execute the documented frontend flows in [`frontend.md`](/Users/poojakulkarni/SampleCRM/docs/frontend.md)
+- execute the documented frontend flows in [`frontend.md`](../frontend.md)
 - verify loading and error states manually
 - verify the UI recovers cleanly from backend errors

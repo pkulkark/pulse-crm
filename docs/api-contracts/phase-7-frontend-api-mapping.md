@@ -29,7 +29,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-2-identity-access.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-2-identity-access.md)
+- [phase-2-identity-access.md](phase-2-identity-access.md)
 
 Notes:
 
@@ -44,7 +44,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-3-crm-relationships-part-1.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-3-crm-relationships-part-1.md)
+- [phase-3-crm-relationships-part-1.md](phase-3-crm-relationships-part-1.md)
 
 Notes:
 
@@ -61,8 +61,8 @@ Primary operations:
 
 Source contracts:
 
-- [phase-3-crm-relationships-part-1.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-3-crm-relationships-part-1.md)
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-3-crm-relationships-part-1.md](phase-3-crm-relationships-part-1.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 Notes:
 
@@ -78,7 +78,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-3-crm-relationships-part-1.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-3-crm-relationships-part-1.md)
+- [phase-3-crm-relationships-part-1.md](phase-3-crm-relationships-part-1.md)
 
 Notes:
 
@@ -94,7 +94,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-3-crm-relationships-part-1.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-3-crm-relationships-part-1.md)
+- [phase-3-crm-relationships-part-1.md](phase-3-crm-relationships-part-1.md)
 
 Notes:
 
@@ -109,7 +109,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-4-deals-service.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-4-deals-service.md)
+- [phase-4-deals-service.md](phase-4-deals-service.md)
 
 Notes:
 
@@ -126,8 +126,8 @@ Primary operations:
 
 Source contracts:
 
-- [phase-4-deals-service.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-4-deals-service.md)
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-4-deals-service.md](phase-4-deals-service.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 Notes:
 
@@ -141,7 +141,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-4-deals-service.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-4-deals-service.md)
+- [phase-4-deals-service.md](phase-4-deals-service.md)
 
 Notes:
 
@@ -156,7 +156,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 Notes:
 
@@ -172,7 +172,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 ### Activity Create Form
 
@@ -182,7 +182,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 ### Activity History Views
 
@@ -194,7 +194,7 @@ Primary operations:
 
 Source contract:
 
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 ## Async UX Mapping
 
@@ -217,9 +217,9 @@ Frontend expectation:
 
 Source references:
 
-- [phase-4-deals-service.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-4-deals-service.md)
-- [phase-5-deal-status-changed-event.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-5-deal-status-changed-event.md)
-- [phase-6-crm-relationships-part-2.md](/Users/poojakulkarni/SampleCRM/docs/api-contracts/phase-6-crm-relationships-part-2.md)
+- [phase-4-deals-service.md](phase-4-deals-service.md)
+- [phase-5-deal-status-changed-event.md](phase-5-deal-status-changed-event.md)
+- [phase-6-crm-relationships-part-2.md](phase-6-crm-relationships-part-2.md)
 
 ## Implementation Notes
 
